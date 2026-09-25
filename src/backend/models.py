@@ -28,3 +28,18 @@ class AuditLedger(Base):
     timestamp = Column(Float, default=time.time)
     details = Column(Text, default="")
     requires_human_approval = Column(Boolean, default=False)
+
+class SystemConnector(Base):
+    __tablename__ = "system_connectors"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    system_type = Column(String, nullable=False)  # KUBERNETES, VERCEL, GITHUB, PROMETHEUS, SLACK
+    target_endpoint = Column(String, nullable=False)
+    auth_type = Column(String, default="BEARER_TOKEN")  # KUBECONFIG, IAM_ROLE, BEARER_TOKEN, WEBHOOK_SECRET
+    environment = Column(String, default="PRODUCTION")  # PRODUCTION, STAGING, DEVELOPMENT
+    status = Column(String, default="CONNECTED")  # CONNECTED, DEGRADED, DISCONNECTED
+    latency_ms = Column(Float, default=25.0)
+    last_synced_at = Column(Float, default=time.time)
+    auto_remediation_enabled = Column(Boolean, default=True)
+    metadata_json = Column(Text, default="{}")

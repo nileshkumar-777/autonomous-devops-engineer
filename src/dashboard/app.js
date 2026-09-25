@@ -29,12 +29,14 @@ const policyTestResult = document.getElementById("policy-test-result");
 document.addEventListener("DOMContentLoaded", () => {
     setupNavigationTabs();
     setupModalControls();
+    setupConnectorControls();
     
     // Initial fetch
     fetchSystemStatus();
     fetchFleetServices();
     fetchIncidents();
     fetchAuditLedger();
+    fetchConnectors();
 
     // Auto-refresh telemetry every 3.5 seconds
     setInterval(() => {
@@ -43,6 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchIncidents();
         if (currentTab === "tab-ledger") {
             fetchAuditLedger();
+        }
+        if (currentTab === "tab-connectors") {
+            fetchConnectors();
         }
     }, 3500);
 });
@@ -418,4 +423,246 @@ function showToast(msg) {
     setTimeout(() => {
         toastNotification.classList.add("hidden");
     }, 4000);
+}
+
+// ------------------------------------------------------------------------------
+// Connected Systems & Multi-Cluster Manager
+// ------------------------------------------------------------------------------
+
+function setupConnectorControls() {
+    const btnToggle = document.getElementById("btn-toggle-new-connector");
+    const drawer = document.getElementById("connector-drawer");
+    const btnClose = document.getElementById("btn-close-drawer");
+    const btnTestHandshake = document.getElementById("btn-test-connection-handshake");
+    const btnSaveConnector = document.getElementById("btn-save-connector");
+
+    if (btnToggle && drawer) {
+        btnToggle.addEventListener("click", () => {
+            drawer.classList.toggle("hidden");
+        });
+    }
+
+    if (btnClose && drawer) {
+        btnClose.addEventListener("click", () => {
+            drawer.classList.add("hidden");
+        });
+    }
+
+    if (btnTestHandshake) {
+        btnTestHandshake.addEventListener("click", handleTestHandshake);
+    }
+
+    if (btnSaveConnector) {
+        btnSaveConnector.addEventListener("click", handleSaveConnector);
+    }
+}
+
+async function fetchConnectors() {
+    const grid = document.getElementById("connected-systems-grid");
+    const navCount = document.getElementById("nav-connectors-count");
+    if (!grid) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/connectors`);
+        if (!res.ok) return;
+        const connectors = await res.json();
+
+        if (navCount) {
+            navCount.innerText = `${connectors.length} Active`;
+        }
+
+        if (connectors.length === 0) {
+            grid.innerHTML = `<div class="empty-cell">No external systems connected yet.</div>`;
+            return;
+        }
+
+        grid.innerHTML = connectors.map(conn => {
+            const isProd = conn.environment.toUpperCase() === "PRODUCTION";
+            const iconClass = getProviderIcon(conn.system_type);
+            const latencyColor = conn.latency_ms < 50 ? "var(--emerald)" : "var(--amber)";
+
+            return `
+                <div class="connector-card" id="card-${conn.id}">
+                    <div class="connector-card-header">
+                        <div class="conn-brand-box">
+                            <div class="conn-icon">
+                                <i class="${iconClass}"></i>
+                            </div>
+                            <div class="conn-title">
+                                <h4>${conn.name}</h4>
+                                <span>${conn.system_type}</span>
+                            </div>
+                        </div>
+                        <span class="conn-env-tag ${isProd ? 'production' : 'staging'}">${conn.environment}</span>
+                    </div>
+
+                    <div class="connector-card-body">
+                        <div class="conn-detail-row">
+                            <span class="label">Target Endpoint</span>
+                            <span class="val" title="${conn.target_endpoint}">${conn.target_endpoint}</span>
+                        </div>
+                        <div class="conn-detail-row">
+                            <span class="label">Auth Standard</span>
+                            <span class="val">${conn.auth_type}</span>
+                        </div>
+                        <div class="conn-detail-row">
+                            <span class="label">Link Latency</span>
+                            <span class="val" style="color: ${latencyColor}; font-weight: 700;">
+                                <i class="fa-solid fa-wifi"></i> ${conn.latency_ms.toFixed(1)}ms
+                            </span>
+                        </div>
+                        <div class="conn-detail-row">
+                            <span class="label">Status</span>
+                            <span class="val" style="color: var(--emerald); font-weight: 700;">
+                                <i class="fa-solid fa-circle-check"></i> ${conn.status}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="connector-card-footer">
+                        <label class="conn-remediation-toggle">
+                            <input type="checkbox" ${conn.auto_remediation_enabled ? 'checked' : ''} 
+                                   onchange="toggleRemediation('${conn.id}', this.checked)">
+                            <span>Auto-Heal</span>
+                        </label>
+                        <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" 
+                                onclick="runLiveProbe('${conn.system_type}', '${conn.target_endpoint}', '${conn.auth_type}', '${conn.name}')">
+                            <i class="fa-solid fa-bolt text-cyan"></i> Test Probe
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+    } catch (err) {
+        console.error("Failed to fetch connectors:", err);
+    }
+}
+
+function getProviderIcon(stype) {
+    const s = (stype || "").toUpperCase();
+    if (s.includes("KUBERNETES") || s.includes("EKS") || s.includes("GKE") || s.includes("AKS")) {
+        return "fa-solid fa-dharmachakra text-cyan";
+    } else if (s.includes("VERCEL")) {
+        return "fa-solid fa-triangle-exclamation text-amber";
+    } else if (s.includes("GITHUB")) {
+        return "fa-brands fa-github text-white";
+    } else if (s.includes("PROMETHEUS")) {
+        return "fa-solid fa-chart-line text-emerald";
+    } else if (s.includes("SLACK")) {
+        return "fa-brands fa-slack text-rose";
+    }
+    return "fa-solid fa-server text-cyan";
+}
+
+async function runLiveProbe(systemType, targetEndpoint, authType, name) {
+    try {
+        const res = await fetch(`${API_BASE}/api/connectors/test`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ system_type: systemType, target_endpoint: targetEndpoint, auth_type: authType })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`[PROBE OK] ${name} reached in ${data.latency_ms}ms!`);
+        } else {
+            showToast(`[PROBE FAILED] ${data.detail || 'Connection error'}`);
+        }
+    } catch (err) {
+        showToast(`[PROBE ERROR] Unable to reach ${name}`);
+    }
+}
+
+async function toggleRemediation(connectorId, enabled) {
+    try {
+        const res = await fetch(`${API_BASE}/api/connectors/toggle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ connector_id: connectorId, enabled: enabled })
+        });
+        const data = await res.json();
+        showToast(data.message || "Remediation state updated.");
+    } catch (err) {
+        showToast("Failed to toggle remediation state.");
+    }
+}
+
+async function handleTestHandshake() {
+    const type = document.getElementById("new-conn-type").value;
+    const url = document.getElementById("new-conn-url").value || "https://api.cloud-provider.com";
+    const auth = document.getElementById("new-conn-auth").value;
+    const feedback = document.getElementById("connector-test-feedback");
+
+    feedback.classList.remove("hidden", "success", "error");
+    feedback.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Dispatched TLS probe to ${url}...`;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/connectors/test`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ system_type: type, target_endpoint: url, auth_type: auth })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            feedback.className = "test-feedback-box success";
+            feedback.innerHTML = `
+                <div><i class="fa-solid fa-circle-check"></i> <strong>HANDSHAKE SUCCESS</strong> (${data.latency_ms}ms)</div>
+                <div style="margin-top: 0.3rem;">${data.message}</div>
+            `;
+        } else {
+            feedback.className = "test-feedback-box error";
+            feedback.innerHTML = `
+                <div><i class="fa-solid fa-circle-xmark"></i> <strong>HANDSHAKE FAILED</strong></div>
+                <div>${data.detail || 'Connection refused'}</div>
+            `;
+        }
+    } catch (err) {
+        feedback.className = "test-feedback-box error";
+        feedback.innerHTML = `<div><i class="fa-solid fa-circle-xmark"></i> Network unreachable: ${err.message}</div>`;
+    }
+}
+
+async function handleSaveConnector() {
+    const name = document.getElementById("new-conn-name").value;
+    const type = document.getElementById("new-conn-type").value;
+    const url = document.getElementById("new-conn-url").value;
+    const env = document.getElementById("new-conn-env").value;
+    const auth = document.getElementById("new-conn-auth").value;
+    const autoRemediation = document.getElementById("new-conn-remediation").checked;
+    const drawer = document.getElementById("connector-drawer");
+
+    if (!name || !url) {
+        showToast("Please enter a System Display Name and Target Endpoint URL.");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/connectors/add`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: name,
+                system_type: type,
+                target_endpoint: url,
+                environment: env,
+                auth_type: auth,
+                auto_remediation_enabled: autoRemediation
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`System '${name}' successfully connected!`);
+            if (drawer) drawer.classList.add("hidden");
+            // Clear inputs
+            document.getElementById("new-conn-name").value = "";
+            document.getElementById("new-conn-url").value = "";
+            fetchConnectors();
+        } else {
+            showToast(`Failed: ${data.detail || 'Could not register connector'}`);
+        }
+    } catch (err) {
+        showToast(`Error connecting system: ${err.message}`);
+    }
 }

@@ -47,6 +47,11 @@
                     <i class="fa-solid fa-book-bookmark"></i>
                     <span>Audit Ledger</span>
                 </button>
+                <button class="nav-tab" data-tab="tab-connectors">
+                    <i class="fa-solid fa-network-wired"></i>
+                    <span>Connected Systems</span>
+                    <span class="pill-count" id="nav-connectors-count">5 Active</span>
+                </button>
             </nav>
         </div>
 
@@ -468,6 +473,135 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ===================================================================
+             TAB 5: CONNECTED SYSTEMS & DEPLOYED INFRASTRUCTURE VIEW
+             =================================================================== -->
+        <div class="tab-pane" id="tab-connectors">
+            <!-- Connectors Header -->
+            <section class="section-card">
+                <div class="card-header-bar">
+                    <div class="header-title">
+                        <i class="fa-solid fa-network-wired text-cyan"></i>
+                        <div>
+                            <h3>Connected Deployments & Multi-Cloud Infrastructure</h3>
+                            <p class="section-desc">AutoSRE connects to Kubernetes clusters (AWS EKS, GKE, AKS), Serverless (Vercel, Netlify), GitOps (GitHub), and Observability platforms.</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-toggle-new-connector">
+                        <i class="fa-solid fa-plus"></i> Connect New System
+                    </button>
+                </div>
+
+                <!-- Connect New System Drawer / Form -->
+                <div class="connector-drawer hidden" id="connector-drawer">
+                    <div class="drawer-header">
+                        <h4><i class="fa-solid fa-link text-cyan"></i> Register New Deployed System</h4>
+                        <button class="btn-icon" id="btn-close-drawer"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="drawer-grid">
+                        <div class="input-group">
+                            <label>System Provider Type</label>
+                            <select id="new-conn-type" class="form-input">
+                                <option value="KUBERNETES">AWS EKS / Cloud Kubernetes</option>
+                                <option value="VERCEL">Vercel Web App & Serverless</option>
+                                <option value="GITHUB">GitHub CI/CD & GitOps</option>
+                                <option value="PROMETHEUS">Prometheus / Datadog Telemetry</option>
+                                <option value="SLACK">Slack & PagerDuty Alerting</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Display Name</label>
+                            <input type="text" id="new-conn-name" class="form-input" placeholder="e.g. AWS EKS Production (us-east-1)">
+                        </div>
+                        <div class="input-group">
+                            <label>Target API / Endpoint URL</label>
+                            <input type="text" id="new-conn-url" class="form-input" placeholder="https://eks.us-east-1.amazonaws.com or https://api.vercel.com">
+                        </div>
+                        <div class="input-group">
+                            <label>Environment</label>
+                            <select id="new-conn-env" class="form-input">
+                                <option value="PRODUCTION">Production</option>
+                                <option value="STAGING">Staging</option>
+                                <option value="DEVELOPMENT">Development</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Authentication Method</label>
+                            <select id="new-conn-auth" class="form-input">
+                                <option value="IAM_ROLE">IAM Role / Workload Identity (IRSA)</option>
+                                <option value="BEARER_TOKEN">API Bearer Token</option>
+                                <option value="KUBECONFIG">Kubeconfig Cluster Certificate</option>
+                                <option value="WEBHOOK_SECRET">HMAC Webhook Secret</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Credentials / API Secret</label>
+                            <input type="password" id="new-conn-secret" class="form-input" placeholder="Enter bearer token, ARN, or secret key">
+                        </div>
+                    </div>
+                    <div class="drawer-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="new-conn-remediation" checked>
+                            <span>Enable Autonomous Self-Healing Remediation for this system</span>
+                        </label>
+                    </div>
+                    <div class="drawer-actions">
+                        <button class="btn btn-outline" id="btn-test-connection-handshake">
+                            <i class="fa-solid fa-plug-circle-check"></i> Test Connection Handshake
+                        </button>
+                        <button class="btn btn-primary" id="btn-save-connector">
+                            <i class="fa-solid fa-floppy-disk"></i> Save & Connect System
+                        </button>
+                    </div>
+                    <div id="connector-test-feedback" class="test-feedback-box hidden"></div>
+                </div>
+
+                <!-- Connected Systems Cards Grid -->
+                <div class="connected-systems-grid" id="connected-systems-grid">
+                    <div class="loading-placeholder">
+                        <i class="fa-solid fa-circle-notch fa-spin text-cyan"></i>
+                        <span>Loading connected deployed systems...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Multi-System Architectural Reference -->
+            <section class="section-card">
+                <div class="card-header-bar">
+                    <div class="header-title">
+                        <i class="fa-solid fa-circle-nodes text-indigo"></i>
+                        <h3>How AutoSRE Connects Across Hybrid & Cloud Environments</h3>
+                    </div>
+                </div>
+                <div class="arch-connectors-grid">
+                    <div class="arch-box">
+                        <div class="arch-icon"><i class="fa-brands fa-aws text-amber"></i></div>
+                        <h4>AWS EKS & Kubernetes</h4>
+                        <p>Authenticates using AWS IRSA (IAM Roles for Service Accounts) with OIDC federation. Dispatches typed Kubernetes API calls via the official Python client. No SSH or node agents required.</p>
+                        <span class="arch-badge">Zero Static Credentials</span>
+                    </div>
+                    <div class="arch-box">
+                        <div class="arch-icon"><i class="fa-solid fa-triangle-exclamation text-cyan"></i></div>
+                        <h4>Vercel Edge Platform</h4>
+                        <p>Listens for Vercel deployment webhooks. Upon detecting 5xx error spikes or broken edge function builds, AutoSRE executes an atomic production alias rollback in &lt; 3 seconds.</p>
+                        <span class="arch-badge">Instant Rollbacks</span>
+                    </div>
+                    <div class="arch-box">
+                        <div class="arch-icon"><i class="fa-brands fa-github text-white"></i></div>
+                        <h4>GitHub CI/CD & GitOps</h4>
+                        <p>Integrated with repository webhooks. AutoSRE automatically generates markdown postmortems, opens incident GitHub Issues, and can trigger emergency hotfix workflow dispatches.</p>
+                        <span class="arch-badge">Automated Postmortems</span>
+                    </div>
+                    <div class="arch-box">
+                        <div class="arch-icon"><i class="fa-solid fa-chart-line text-emerald"></i></div>
+                        <h4>Prometheus & Observability</h4>
+                        <p>Continuously scrapes PromQL metric endpoints (error rates, P95 latency, pod saturation). Validates closed-loop telemetry recovery post-remediation to confirm system health.</p>
+                        <span class="arch-badge">Closed-Loop Verification</span>
+                    </div>
                 </div>
             </section>
         </div>

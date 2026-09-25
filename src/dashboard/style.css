@@ -1143,3 +1143,259 @@ body {
     color: var(--emerald);
     font-size: 1.1rem;
 }
+
+/* ==============================================================================
+   Connected Systems & Infrastructure Styles
+   ============================================================================== */
+.connector-drawer {
+    background: #0D1424;
+    border: 1px solid var(--border-hover);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-glow);
+    animation: fadeIn 0.25s ease-out;
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.drawer-header h4 {
+    font-size: 1rem;
+    color: var(--text-white);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.drawer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+
+.drawer-options {
+    margin-bottom: 1.2rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.drawer-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.test-feedback-box {
+    margin-top: 1rem;
+    padding: 0.9rem 1.2rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+}
+
+.test-feedback-box.success {
+    background: var(--emerald-bg);
+    border: 1px solid var(--emerald);
+    color: var(--emerald);
+}
+
+.test-feedback-box.error {
+    background: var(--rose-bg);
+    border: 1px solid var(--rose);
+    color: var(--rose);
+}
+
+.connected-systems-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.3rem;
+}
+
+.connector-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 1.3rem;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.connector-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.connector-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.conn-brand-box {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.conn-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    background: #0D1527;
+    border: 1px solid var(--border-subtle);
+}
+
+.conn-title h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-white);
+}
+
+.conn-title span {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+}
+
+.conn-env-tag {
+    font-size: 0.68rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.conn-env-tag.production {
+    background: var(--emerald-bg);
+    color: var(--emerald);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.conn-env-tag.staging {
+    background: var(--amber-bg);
+    color: var(--amber);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.connector-card-body {
+    margin-bottom: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.conn-detail-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.conn-detail-row span.label {
+    color: var(--text-secondary);
+}
+
+.conn-detail-row span.val {
+    color: var(--text-white);
+    font-family: var(--font-mono);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.connector-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.conn-remediation-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.conn-remediation-toggle input {
+    cursor: pointer;
+}
+
+.arch-connectors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.2rem;
+}
+
+.arch-box {
+    background: #0E1626;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: var(--transition);
+}
+
+.arch-box:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.arch-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.arch-box h4 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-white);
+    margin-bottom: 0.5rem;
+}
+
+.arch-box p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin-bottom: 1rem;
+}
+
+.arch-badge {
+    align-self: flex-start;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    background: var(--indigo-bg);
+    color: #A5B4FC;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    font-weight: 600;
+}
