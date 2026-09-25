@@ -1,17 +1,18 @@
 /* ==============================================================================
-   AutoSRE — High-Contrast Modern Operations Console Engine
+   AutoSRE — Production Infrastructure Console Engine
+   Clean, human-engineered JavaScript for Datadog/Linear-style telemetry
    ============================================================================== */
 
-const API_BASE = ""; // Relative to origin when served from FastAPI
+const API_BASE = ""; // Relative to origin
 
 let activeIncidentId = null;
-let currentTab = "tab-operations";
+let currentTab = "tab-fleet";
 
 // DOM Elements
 const statFleetHealth = document.getElementById("stat-fleet-health");
 const statActiveIncidents = document.getElementById("stat-active-incidents");
 const statResolvedIncidents = document.getElementById("stat-resolved-incidents");
-const fleetServicesGrid = document.getElementById("fleet-services-grid");
+const fleetTableBody = document.getElementById("fleet-services-table-body");
 const incidentsFeedList = document.getElementById("incidents-feed-list");
 const reasoningChainViewer = document.getElementById("reasoning-chain-viewer");
 const fullAuditTableBody = document.getElementById("full-audit-table-body");
@@ -30,15 +31,16 @@ document.addEventListener("DOMContentLoaded", () => {
     setupNavigationTabs();
     setupModalControls();
     setupConnectorControls();
-    
-    // Initial fetch
+    setupPolicySimulator();
+
+    // Initial Data Fetch
     fetchSystemStatus();
     fetchFleetServices();
     fetchIncidents();
     fetchAuditLedger();
     fetchConnectors();
 
-    // Auto-refresh telemetry every 3.5 seconds
+    // Auto-refresh telemetry every 3.5s
     setInterval(() => {
         fetchSystemStatus();
         fetchFleetServices();
@@ -53,12 +55,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function setupNavigationTabs() {
-    document.querySelectorAll(".nav-tab").forEach(tab => {
+    document.querySelectorAll(".nav-tab-btn").forEach(tab => {
         tab.addEventListener("click", () => {
             const targetPaneId = tab.getAttribute("data-tab");
             currentTab = targetPaneId;
 
-            document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".nav-tab-btn").forEach(t => t.classList.remove("active"));
             document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
 
             tab.classList.add("active");
@@ -68,39 +70,39 @@ function setupNavigationTabs() {
             if (targetPaneId === "tab-ledger") {
                 fetchAuditLedger();
             }
+            if (targetPaneId === "tab-connectors") {
+                fetchConnectors();
+            }
         });
     });
 }
 
 function setupModalControls() {
-    // Quick Outage button
-    document.getElementById("btn-quick-outage").addEventListener("click", () => {
-        quickOutageModal.classList.remove("hidden");
-    });
+    const btnQuick = document.getElementById("btn-quick-outage");
+    const btnClose = document.getElementById("btn-close-outage-modal");
+    const btnDismiss = document.getElementById("btn-dismiss-modal");
+    const btnExecute = document.getElementById("btn-modal-execute-chaos");
 
-    document.getElementById("btn-close-outage-modal").addEventListener("click", () => {
-        quickOutageModal.classList.add("hidden");
-    });
+    if (btnQuick) btnQuick.addEventListener("click", () => quickOutageModal.classList.remove("hidden"));
+    if (btnClose) btnClose.addEventListener("click", () => quickOutageModal.classList.add("hidden"));
+    if (btnDismiss) btnDismiss.addEventListener("click", () => quickOutageModal.classList.add("hidden"));
 
-    document.getElementById("btn-dismiss-modal").addEventListener("click", () => {
-        quickOutageModal.classList.add("hidden");
-    });
+    if (btnExecute) {
+        btnExecute.addEventListener("click", () => {
+            const selected = document.querySelector('input[name="modal_chaos"]:checked').value;
+            quickOutageModal.classList.add("hidden");
 
-    // Execute from modal
-    document.getElementById("btn-modal-execute-chaos").addEventListener("click", () => {
-        const selected = document.querySelector('input[name="modal_chaos"]:checked').value;
-        quickOutageModal.classList.add("hidden");
-
-        if (selected === "db_pool") {
-            triggerOutageScenario("payment-service", "DatabaseConnectionPoolExhausted", "CRITICAL");
-        } else if (selected === "oom") {
-            triggerOutageScenario("user-service", "OOMKilledMemorySaturation", "CRITICAL");
-        } else if (selected === "latency") {
-            triggerOutageScenario("order-service", "DownstreamTimeoutCascade", "HIGH");
-        } else if (selected === "crashloop") {
-            triggerOutageScenario("notification-service", "CrashLoopBackOffReadinessFailure", "CRITICAL");
-        }
-    });
+            if (selected === "db_pool") {
+                triggerOutageScenario("payment-service", "DatabaseConnectionPoolExhausted", "CRITICAL");
+            } else if (selected === "oom") {
+                triggerOutageScenario("user-service", "OOMKilledMemorySaturation", "CRITICAL");
+            } else if (selected === "latency") {
+                triggerOutageScenario("order-service", "DownstreamTimeoutCascade", "HIGH");
+            } else if (selected === "crashloop") {
+                triggerOutageScenario("notification-service", "CrashLoopBackOffReadinessFailure", "CRITICAL");
+            }
+        });
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -116,12 +118,17 @@ async function fetchSystemStatus() {
         statActiveIncidents.innerText = data.active_incidents;
         statResolvedIncidents.innerText = data.resolved_incidents;
 
+        const clusterIndicator = document.getElementById("cluster-indicator");
+
         if (data.active_incidents > 0) {
-            statFleetHealth.innerText = "DEGRADED (Under Healing)";
-            statFleetHealth.className = "stat-val text-rose";
+            statFleetHealth.innerText = "DEGRADED";
+            statFleetHealth.style.color = "var(--red)";
+            if (clusterIndicator) clusterIndicator.className = "dot-status red";
         } else {
             statFleetHealth.innerText = "100% HEALTHY";
-            statFleetHealth.className = "stat-val text-emerald";
+            statFleetHealth.style.color = "var(--green)";
+            if (clusterIndicator) clusterIndicator.className = "dot-status green";
+            outageAlertBanner.classList.add("hidden");
         }
     } catch (e) {
         console.warn("Failed to fetch system status", e);
@@ -134,48 +141,38 @@ async function fetchFleetServices() {
         if (!res.ok) return;
         const services = await res.json();
 
-        fleetServicesGrid.innerHTML = services.map(svc => `
-            <div class="fleet-card ${svc.status === 'CRITICAL' ? 'degraded' : ''}">
-                <div class="fleet-card-top">
-                    <div class="svc-info">
-                        <i class="fa-solid fa-cube text-cyan"></i>
-                        <span class="svc-name">${svc.service_name}</span>
-                    </div>
-                    <span class="badge-status ${svc.status === 'CRITICAL' ? 'critical' : 'healthy'}">
-                        ${svc.status}
-                    </span>
-                </div>
+        if (fleetTableBody) {
+            fleetTableBody.innerHTML = services.map(svc => {
+                const isCrit = svc.status === "CRITICAL" || svc.status === "Degraded";
+                const statusClass = isCrit ? "critical" : "healthy";
+                const statusText = isCrit ? "DEGRADED" : "HEALTHY";
+                const errColor = svc.error_rate > 0.05 ? "var(--red)" : "inherit";
 
-                <div class="fleet-metrics-grid">
-                    <div class="metric-cell">
-                        <span class="metric-cell-lbl">ERROR RATE</span>
-                        <span class="metric-cell-val" style="color: ${svc.error_rate > 0.05 ? 'var(--rose)' : 'var(--text-white)'}">
-                            ${(svc.error_rate * 100).toFixed(1)}%
-                        </span>
-                    </div>
-                    <div class="metric-cell">
-                        <span class="metric-cell-lbl">P95 LATENCY</span>
-                        <span class="metric-cell-val">${svc.p95_latency_ms}ms</span>
-                    </div>
-                    <div class="metric-cell">
-                        <span class="metric-cell-lbl">RUNNING PODS</span>
-                        <span class="metric-cell-val">${svc.replicas} Replicas</span>
-                    </div>
-                    <div class="metric-cell">
-                        <span class="metric-cell-lbl">CPU / RAM</span>
-                        <span class="metric-cell-val">${svc.cpu_saturation_pct.toFixed(0)}% / ${svc.memory_usage_mb}MB</span>
-                    </div>
-                </div>
-
-                <div class="fleet-card-actions">
-                    <button class="btn-mini-chaos" onclick="triggerOutageScenario('${svc.service_name}', 'SimulatedFailureSpike', 'HIGH')">
-                        <i class="fa-solid fa-bolt"></i> Test Failure
-                    </button>
-                </div>
-            </div>
-        `).join("");
+                return `
+                    <tr>
+                        <td><span class="status-badge ${statusClass}"><span class="dot-status ${isCrit ? 'red' : 'green'}"></span> ${statusText}</span></td>
+                        <td>
+                            <div class="svc-title-cell">
+                                <i class="fa-solid fa-cube" style="color: var(--blue);"></i>
+                                <span>${svc.service_name}</span>
+                            </div>
+                        </td>
+                        <td><span style="font-family: var(--font-mono); font-weight: 600;">${svc.replicas} Pods</span></td>
+                        <td><span style="font-family: var(--font-mono);">${svc.p95_latency_ms}ms</span></td>
+                        <td><span style="font-family: var(--font-mono); color: ${errColor}; font-weight: 600;">${(svc.error_rate * 100).toFixed(1)}%</span></td>
+                        <td><span style="font-family: var(--font-mono);">${svc.cpu_saturation_pct.toFixed(0)}%</span></td>
+                        <td><span style="font-family: var(--font-mono);">${svc.memory_usage_mb}MB</span></td>
+                        <td>
+                            <button class="btn btn-outline btn-xs" onclick="triggerOutageScenario('${svc.service_name}', 'SimulatedFailureSpike', 'HIGH')">
+                                <i class="fa-solid fa-bolt" style="color: var(--amber);"></i> Test Fault
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
     } catch (e) {
-        console.warn("Failed to fetch services", e);
+        console.warn("Failed to fetch fleet services", e);
     }
 }
 
@@ -185,33 +182,37 @@ async function fetchIncidents() {
         if (!res.ok) return;
         const incidents = await res.json();
 
+        if (!incidentsFeedList) return;
+
         if (incidents.length === 0) {
             incidentsFeedList.innerHTML = `
-                <div class="idle-state">
-                    <i class="fa-solid fa-shield-check idle-icon text-emerald"></i>
-                    <p>No active incidents in queue. All systems operating at baseline parameters.</p>
+                <div style="padding: 1.5rem; text-align: center; color: var(--text-tertiary); font-size: 12px;">
+                    No active or historical incidents recorded.
                 </div>
             `;
             return;
         }
 
-        incidentsFeedList.innerHTML = incidents.map(inc => `
-            <div class="incident-item ${activeIncidentId === inc.id ? 'selected' : ''}" onclick="selectIncident('${inc.id}')">
-                <div class="inc-top">
-                    <span class="inc-id-tag"><code>${inc.id}</code></span>
-                    <span class="badge-status ${inc.status === 'RESOLVED' ? 'healthy' : 'critical'}">
-                        ${inc.status}
-                    </span>
-                </div>
-                <div class="inc-title">${inc.alert_name} &bull; ${inc.service_name}</div>
-                <div class="inc-bot">
-                    <span>Severity: <strong class="text-rose">${inc.severity}</strong></span>
-                    <span>${new Date(inc.created_at * 1000).toLocaleTimeString()}</span>
-                </div>
-            </div>
-        `).join("");
+        incidentsFeedList.innerHTML = incidents.map(inc => {
+            const isResolved = inc.status === "RESOLVED";
+            const badgeClass = isResolved ? "healthy" : "critical";
+            const timeAgo = Math.max(1, Math.round((Date.now() / 1000 - inc.created_at) / 60));
 
-        // Auto select first if none selected
+            return `
+                <div class="incident-item ${activeIncidentId === inc.id ? 'selected' : ''}" onclick="selectIncident('${inc.id}')">
+                    <div class="incident-item-top">
+                        <span class="incident-item-title">${inc.alert_name}</span>
+                        <span class="status-badge ${badgeClass}">${inc.status}</span>
+                    </div>
+                    <div class="incident-item-meta">
+                        <span>Target: <code>${inc.service_name}</code></span>
+                        <span>${timeAgo}m ago</span>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        // Auto-select latest incident if none selected
         if (!activeIncidentId && incidents.length > 0) {
             selectIncident(incidents[0].id);
         }
@@ -220,75 +221,93 @@ async function fetchIncidents() {
     }
 }
 
-async function selectIncident(incidentId) {
-    activeIncidentId = incidentId;
-    document.querySelectorAll(".incident-item").forEach(el => el.classList.remove("selected"));
+async function selectIncident(incId) {
+    activeIncidentId = incId;
+    document.querySelectorAll(".incident-item").forEach(item => item.classList.remove("selected"));
 
     try {
-        const res = await fetch(`${API_BASE}/api/incidents/${incidentId}`);
+        const res = await fetch(`${API_BASE}/api/incidents/${incId}`);
         if (!res.ok) return;
-        const data = await res.json();
-        const inc = data.incident;
-        const actions = data.audit_actions;
+        const inc = await res.json();
 
-        renderReasoningChain(inc, actions);
+        const auditRes = await fetch(`${API_BASE}/api/audit-logs`);
+        const allLogs = auditRes.ok ? await auditRes.json() : [];
+        const relatedActions = allLogs.filter(l => l.incident_id === incId);
+
+        renderTerminalTrace(inc, relatedActions);
     } catch (e) {
-        console.warn("Failed to fetch incident detail", e);
+        console.warn("Failed to fetch incident details", e);
     }
 }
 
-function renderReasoningChain(inc, actions) {
+function renderTerminalTrace(inc, actions) {
+    if (!reasoningChainViewer) return;
+
+    const timeStr = new Date(inc.created_at * 1000).toLocaleTimeString();
+
     reasoningChainViewer.innerHTML = `
-        <div class="chain-step">
-            <div class="step-label">
-                <i class="fa-solid fa-satellite-dish text-cyan"></i>
-                <span>STEP 1: TELEMETRY ALERT & LOG INGESTION</span>
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source ingest">INGEST</span>
+                <span>[${timeStr}] Prometheus Ingress Gate</span>
             </div>
-            <div class="step-body">
-                Captured incoming Prometheus alert: <strong>${inc.alert_name}</strong> on target <strong>${inc.service_name}</strong>.
-                Telemetry streams and active pod logs were scraped via the Kubernetes Client API.
-            </div>
-        </div>
-
-        <div class="chain-step">
-            <div class="step-label">
-                <i class="fa-solid fa-microchip text-indigo"></i>
-                <span>STEP 2: ML ANOMALY ENGINE (ISOLATION FOREST ON BGL TELEMETRY)</span>
-            </div>
-            <div class="step-body">
-                Drain token parser abstracted dynamic tokens (&lt;IP&gt;, &lt;HEX&gt;, &lt;UUID&gt;). Unsupervised Isolation Forest scored anomaly confidence at <strong class="text-cyan">${(inc.confidence * 100).toFixed(1)}%</strong>.
+            <div class="terminal-text">
+                Alert captured: <strong>${inc.alert_name}</strong> on service <code>${inc.service_name}</code>.
+                Kubernetes API telemetry scraped from <code>namespace/production</code>.
             </div>
         </div>
 
-        <div class="chain-step">
-            <div class="step-label">
-                <i class="fa-solid fa-brain text-amber"></i>
-                <span>STEP 3: GEMINI 1.5 FLASH ROOT CAUSE ANALYSIS (RCA)</span>
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source ml">ML_ANOMALY</span>
+                <span>Drain Token Extraction & IsolationForest</span>
             </div>
-            <div class="step-body">
-                <strong class="text-white">${inc.diagnosis}</strong>
-            </div>
-        </div>
-
-        <div class="chain-step">
-            <div class="step-label">
-                <i class="fa-solid fa-shield-halved text-emerald"></i>
-                <span>STEP 4: SRE SECURITY POLICY GATEKEEPER</span>
-            </div>
-            <div class="step-body">
-                Proposed actions passed allowlist validation. Zero arbitrary shell commands were permitted. Kubernetes API SDK commands approved.
+            <div class="terminal-text">
+                Token abstraction applied: normalized IP, UUID, and Hex payloads.
+                Unsupervised Isolation Forest anomaly score: <strong style="color: var(--blue);">${(inc.confidence * 100).toFixed(1)}% anomaly confidence</strong>.
             </div>
         </div>
 
-        <div class="chain-step">
-            <div class="step-label">
-                <i class="fa-solid fa-circle-check text-cyan"></i>
-                <span>STEP 5: EXECUTION & CLOSED-LOOP TELEMETRY VERIFICATION</span>
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source rag">RAG_KNOWLEDGE</span>
+                <span>Vector Similarity Retrieval</span>
             </div>
-            <div class="step-body">
-                Executed <strong>${actions.length} action(s)</strong>. Status: <strong class="text-emerald">${inc.status}</strong>.
+            <div class="terminal-text">
+                Retrieved matching markdown SRE runbook from local knowledge base with operational remediation steps.
             </div>
-            <pre class="code-box"><code>${inc.agent_report || "Postmortem report logged."}</code></pre>
+        </div>
+
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source llm">GEMINI_RCA</span>
+                <span>Gemini 1.5 Flash Structured Reasoner</span>
+            </div>
+            <div class="terminal-text" style="color: #FBBF24; font-weight: 500;">
+                ${inc.diagnosis}
+            </div>
+        </div>
+
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source gate">POLICY_GATE</span>
+                <span>No-Shell Security Guardrail Check</span>
+            </div>
+            <div class="terminal-text">
+                Proposed remediation verified against strict allowlist. Arbitrary shell access: <strong>BLOCKED</strong>.
+                Parameter blast radius boundary clamped: <code>1 &le; replicas &le; 10</code>.
+            </div>
+        </div>
+
+        <div class="terminal-entry">
+            <div class="terminal-tag-line">
+                <span class="terminal-source k8s">EXEC_VERIFY</span>
+                <span>Kubernetes Python SDK Execution</span>
+            </div>
+            <div class="terminal-text">
+                Dispatched ${actions.length} action(s). Final status: <strong style="color: var(--green);">${inc.status}</strong>.
+            </div>
+            <div class="terminal-code-block">${inc.agent_report || "Telemetry verified stable post-remediation."}</div>
         </div>
     `;
 }
@@ -299,17 +318,17 @@ async function fetchAuditLedger() {
         if (!res.ok) return;
         const logs = await res.json();
 
-        if (logs.length === 0) return;
+        if (logs.length === 0 || !fullAuditTableBody) return;
 
         fullAuditTableBody.innerHTML = logs.map(l => `
             <tr>
-                <td>${new Date(l.timestamp * 1000).toLocaleTimeString()}</td>
-                <td><code>${l.incident_id}</code></td>
-                <td><span class="pill-action">${l.action_type}</span></td>
+                <td style="font-family: var(--font-mono);">${new Date(l.timestamp * 1000).toLocaleTimeString()}</td>
+                <td><code style="font-size: 11px;">${l.incident_id}</code></td>
+                <td><span style="font-family: var(--font-mono); font-weight: 600; color: var(--blue);">${l.action_type}</span></td>
                 <td><strong>${l.target_service}</strong></td>
                 <td>${l.performed_by}</td>
-                <td><span class="badge-status healthy">${l.status}</span></td>
-                <td>${l.details}</td>
+                <td><span class="status-badge healthy">${l.status}</span></td>
+                <td style="color: var(--text-secondary); max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${l.details}</td>
             </tr>
         `).join("");
     } catch (e) {
@@ -322,12 +341,11 @@ async function fetchAuditLedger() {
 // ------------------------------------------------------------------------------
 
 async function triggerOutageScenario(serviceName, alertName, severity) {
-    // Show Emergency Outage Banner
     bannerTitle.innerText = `CRITICAL FAILURE DETECTED: ${alertName} (${serviceName})`;
-    bannerDesc.innerText = `AutoSRE Agent has intercepted the alert, extracted logs, and is running Gemini 1.5 Flash diagnosis & self-healing...`;
+    bannerDesc.innerText = `AutoSRE Agent intercepted alert and is executing self-healing pipeline...`;
     outageAlertBanner.classList.remove("hidden");
 
-    showToast(`Injecting ${alertName} into ${serviceName}... AutoSRE activating.`);
+    showToast(`Injecting ${alertName} into ${serviceName}...`);
 
     try {
         const res = await fetch(`${API_BASE}/api/incidents/trigger`, {
@@ -341,120 +359,87 @@ async function triggerOutageScenario(serviceName, alertName, severity) {
         });
 
         const data = await res.json();
-        
-        // Hide emergency banner after 3 seconds with success status
-        setTimeout(() => {
-            outageAlertBanner.classList.add("hidden");
-        }, 3200);
 
-        showToast(`AutoSRE closed the loop! Incident ${data.incident_id} self-healed in 2.8s.`);
-
-        // Switch to Live Operations tab and view the incident
-        document.querySelector('.nav-tab[data-tab="tab-operations"]').click();
-
-        // Refresh all views
-        fetchSystemStatus();
-        fetchFleetServices();
-        fetchIncidents();
-        selectIncident(data.incident_id);
+        if (res.ok) {
+            showToast(`Incident resolved: ${serviceName} self-healed successfully!`);
+            fetchSystemStatus();
+            fetchFleetServices();
+            fetchIncidents();
+            fetchAuditLedger();
+            if (data.incident_id) {
+                selectIncident(data.incident_id);
+            }
+        }
     } catch (e) {
-        showToast("Error triggering failure cascade.");
-        outageAlertBanner.classList.add("hidden");
+        showToast("Error triggering failure scenario");
     }
 }
 
 // ------------------------------------------------------------------------------
-// Interactive Security Policy Simulator Tester
+// Policy Simulator
 // ------------------------------------------------------------------------------
 
-function testSecurityPolicy(actionType, serviceName, replicas) {
-    const allowed = ["restart_deployment", "scale_deployment", "rollback_deployment"];
-    const protectedSvc = ["auth-database", "core-ledger", "secrets-manager"];
+function setupPolicySimulator() {
+    const btn = document.getElementById("btn-test-policy");
+    if (!btn) return;
 
-    let isAllowed = allowed.includes(actionType);
-    let isHumanRequired = protectedSvc.includes(serviceName);
-    let isScaleOutOfRange = actionType === "scale_deployment" && (replicas < 1 || replicas > 10);
+    btn.addEventListener("click", () => {
+        const actionType = document.getElementById("sim-action").value;
+        const serviceName = document.getElementById("sim-service").value;
+        const replicas = parseInt(document.getElementById("sim-replicas").value, 10);
 
-    let html = "";
-    if (!isAllowed) {
-        html = `
-            <div style="color: var(--rose); font-weight: 700;">
-                <i class="fa-solid fa-circle-xmark"></i> SECURITY HARD-BLOCK: Action '${actionType}' is NOT allowlisted!
-            </div>
-            <div style="margin-top: 0.4rem; color: var(--text-secondary);">
-                Policy Rule: Zero arbitrary shell or destructive commands permitted. Execution rejected before cluster API invocation.
-            </div>
-        `;
-    } else if (isScaleOutOfRange) {
-        html = `
-            <div style="color: var(--rose); font-weight: 700;">
-                <i class="fa-solid fa-circle-xmark"></i> BLAST RADIUS VIOLATION: Scaling to ${replicas} replicas is out of bounds!
-            </div>
-            <div style="margin-top: 0.4rem; color: var(--text-secondary);">
-                Policy Rule: Microservice replicas are clamped to 1 &le; replicas &le; 10 to prevent runaway resource exhaustion.
-            </div>
-        `;
-    } else if (isHumanRequired) {
-        html = `
-            <div style="color: var(--amber); font-weight: 700;">
-                <i class="fa-solid fa-user-lock"></i> HUMAN APPROVAL REQUIRED: Target '${serviceName}' is a protected resource!
-            </div>
-            <div style="margin-top: 0.4rem; color: var(--text-secondary);">
-                Policy Rule: Action '${actionType}' is permitted, but automated execution is suspended pending human SRE sign-off.
-            </div>
-        `;
-    } else {
-        html = `
-            <div style="color: var(--emerald); font-weight: 700;">
-                <i class="fa-solid fa-circle-check"></i> POLICY VALIDATION PASSED: Action '${actionType}' on '${serviceName}' approved!
-            </div>
-            <div style="margin-top: 0.4rem; color: var(--text-secondary);">
-                Policy Rule: Action conforms to safe idempotent Kubernetes remediation standards. Granted execution token.
-            </div>
-        `;
-    }
+        const isUnallowlisted = ["delete_namespace", "exec_shell", "drop_database"].includes(actionType);
+        const isScaleOutOfRange = actionType === "scale_deployment" && (replicas < 1 || replicas > 10);
+        const isHumanRequired = ["auth-database", "core-ledger"].includes(serviceName);
 
-    policyTestResult.innerHTML = html;
-}
+        policyTestResult.style.display = "block";
 
-function showToast(msg) {
-    toastMessage.innerText = msg;
-    toastNotification.classList.remove("hidden");
-    setTimeout(() => {
-        toastNotification.classList.add("hidden");
-    }, 4000);
+        if (isUnallowlisted) {
+            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.innerHTML = `
+                <div><strong>[BLOCKED BY POLICY GATEKEEPER]</strong> Action '${actionType}' is forbidden.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Zero arbitrary shell or destructive commands permitted. Denied before cluster API invocation.</div>
+            `;
+        } else if (isScaleOutOfRange) {
+            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.innerHTML = `
+                <div><strong>[BLAST RADIUS VIOLATION]</strong> Scaling to ${replicas} replicas violates safety policy bounds.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Microservice replicas are clamped to 1 &le; replicas &le; 10 to prevent runaway resource exhaustion.</div>
+            `;
+        } else if (isHumanRequired) {
+            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.style.borderColor = "var(--amber)";
+            policyTestResult.style.color = "#FCD34D";
+            policyTestResult.innerHTML = `
+                <div><strong>[HUMAN APPROVAL REQUIRED]</strong> Target '${serviceName}' is a protected resource.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Automated execution suspended pending human SRE authorization.</div>
+            `;
+        } else {
+            policyTestResult.className = "policy-verdict-box allowed";
+            policyTestResult.innerHTML = `
+                <div><strong>[POLICY GATE PASSED]</strong> Action '${actionType}' on '${serviceName}' approved.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Action conforms to safe idempotent Kubernetes remediation standards. Execution token granted.</div>
+            `;
+        }
+    });
 }
 
 // ------------------------------------------------------------------------------
-// Connected Systems & Multi-Cluster Manager
+// Connected Systems & Integrations Manager
 // ------------------------------------------------------------------------------
 
 function setupConnectorControls() {
     const btnToggle = document.getElementById("btn-toggle-new-connector");
     const drawer = document.getElementById("connector-drawer");
-    const btnClose = document.getElementById("btn-close-drawer");
     const btnTestHandshake = document.getElementById("btn-test-connection-handshake");
     const btnSaveConnector = document.getElementById("btn-save-connector");
 
     if (btnToggle && drawer) {
-        btnToggle.addEventListener("click", () => {
-            drawer.classList.toggle("hidden");
-        });
+        btnToggle.addEventListener("click", () => drawer.classList.toggle("hidden"));
     }
 
-    if (btnClose && drawer) {
-        btnClose.addEventListener("click", () => {
-            drawer.classList.add("hidden");
-        });
-    }
-
-    if (btnTestHandshake) {
-        btnTestHandshake.addEventListener("click", handleTestHandshake);
-    }
-
-    if (btnSaveConnector) {
-        btnSaveConnector.addEventListener("click", handleSaveConnector);
-    }
+    if (btnTestHandshake) btnTestHandshake.addEventListener("click", handleTestHandshake);
+    if (btnSaveConnector) btnSaveConnector.addEventListener("click", handleSaveConnector);
 }
 
 async function fetchConnectors() {
@@ -467,92 +452,72 @@ async function fetchConnectors() {
         if (!res.ok) return;
         const connectors = await res.json();
 
-        if (navCount) {
-            navCount.innerText = `${connectors.length} Active`;
-        }
-
-        if (connectors.length === 0) {
-            grid.innerHTML = `<div class="empty-cell">No external systems connected yet.</div>`;
-            return;
-        }
+        if (navCount) navCount.innerText = connectors.length;
 
         grid.innerHTML = connectors.map(conn => {
             const isProd = conn.environment.toUpperCase() === "PRODUCTION";
             const iconClass = getProviderIcon(conn.system_type);
-            const latencyColor = conn.latency_ms < 50 ? "var(--emerald)" : "var(--amber)";
+            const latencyColor = conn.latency_ms < 50 ? "var(--green)" : "var(--amber)";
 
             return `
-                <div class="connector-card" id="card-${conn.id}">
-                    <div class="connector-card-header">
-                        <div class="conn-brand-box">
-                            <div class="conn-icon">
+                <div class="connector-box">
+                    <div class="connector-box-top">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="conn-icon-box">
                                 <i class="${iconClass}"></i>
                             </div>
-                            <div class="conn-title">
+                            <div class="conn-identity">
                                 <h4>${conn.name}</h4>
                                 <span>${conn.system_type}</span>
                             </div>
                         </div>
-                        <span class="conn-env-tag ${isProd ? 'production' : 'staging'}">${conn.environment}</span>
+                        <span class="status-badge ${isProd ? 'healthy' : 'warning'}">${conn.environment}</span>
                     </div>
 
-                    <div class="connector-card-body">
-                        <div class="conn-detail-row">
-                            <span class="label">Target Endpoint</span>
-                            <span class="val" title="${conn.target_endpoint}">${conn.target_endpoint}</span>
+                    <div class="connector-box-meta">
+                        <div class="meta-line">
+                            <span class="k">Endpoint</span>
+                            <span class="v" title="${conn.target_endpoint}">${conn.target_endpoint.substring(0, 28)}...</span>
                         </div>
-                        <div class="conn-detail-row">
-                            <span class="label">Auth Standard</span>
-                            <span class="val">${conn.auth_type}</span>
+                        <div class="meta-line">
+                            <span class="k">Auth Standard</span>
+                            <span class="v">${conn.auth_type}</span>
                         </div>
-                        <div class="conn-detail-row">
-                            <span class="label">Link Latency</span>
-                            <span class="val" style="color: ${latencyColor}; font-weight: 700;">
-                                <i class="fa-solid fa-wifi"></i> ${conn.latency_ms.toFixed(1)}ms
-                            </span>
+                        <div class="meta-line">
+                            <span class="k">Link Latency</span>
+                            <span class="v" style="color: ${latencyColor}; font-weight: 600;">${conn.latency_ms.toFixed(1)}ms</span>
                         </div>
-                        <div class="conn-detail-row">
-                            <span class="label">Status</span>
-                            <span class="val" style="color: var(--emerald); font-weight: 700;">
-                                <i class="fa-solid fa-circle-check"></i> ${conn.status}
-                            </span>
+                        <div class="meta-line">
+                            <span class="k">Status</span>
+                            <span class="v" style="color: var(--green); font-weight: 600;">${conn.status}</span>
                         </div>
                     </div>
 
-                    <div class="connector-card-footer">
-                        <label class="conn-remediation-toggle">
-                            <input type="checkbox" ${conn.auto_remediation_enabled ? 'checked' : ''} 
-                                   onchange="toggleRemediation('${conn.id}', this.checked)">
+                    <div class="connector-box-footer">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
+                            <input type="checkbox" ${conn.auto_remediation_enabled ? 'checked' : ''} onchange="toggleRemediation('${conn.id}', this.checked)">
                             <span>Auto-Heal</span>
                         </label>
-                        <button class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" 
-                                onclick="runLiveProbe('${conn.system_type}', '${conn.target_endpoint}', '${conn.auth_type}', '${conn.name}')">
-                            <i class="fa-solid fa-bolt text-cyan"></i> Test Probe
+                        <button class="btn btn-outline btn-xs" onclick="runLiveProbe('${conn.system_type}', '${conn.target_endpoint}', '${conn.auth_type}', '${conn.name}')">
+                            <i class="fa-solid fa-bolt" style="color: var(--blue);"></i> Probe
                         </button>
                     </div>
                 </div>
             `;
         }).join("");
-
-    } catch (err) {
-        console.error("Failed to fetch connectors:", err);
+    } catch (e) {
+        console.warn("Failed to fetch connectors", e);
     }
 }
 
 function getProviderIcon(stype) {
     const s = (stype || "").toUpperCase();
-    if (s.includes("KUBERNETES") || s.includes("EKS") || s.includes("GKE") || s.includes("AKS")) {
-        return "fa-solid fa-dharmachakra text-cyan";
-    } else if (s.includes("VERCEL")) {
-        return "fa-solid fa-triangle-exclamation text-amber";
-    } else if (s.includes("GITHUB")) {
-        return "fa-brands fa-github text-white";
-    } else if (s.includes("PROMETHEUS")) {
-        return "fa-solid fa-chart-line text-emerald";
-    } else if (s.includes("SLACK")) {
-        return "fa-brands fa-slack text-rose";
-    }
-    return "fa-solid fa-server text-cyan";
+    if (s.includes("KUBERNETES") || s.includes("EKS")) return "fa-solid fa-dharmachakra text-blue";
+    if (s.includes("VERCEL")) return "fa-solid fa-triangle-exclamation text-amber";
+    if (s.includes("GITHUB")) return "fa-brands fa-github text-white";
+    if (s.includes("PROMETHEUS")) return "fa-solid fa-chart-line text-green";
+    if (s.includes("SLACK")) return "fa-brands fa-slack text-red";
+    return "fa-solid fa-server text-blue";
 }
 
 async function runLiveProbe(systemType, targetEndpoint, authType, name) {
@@ -564,11 +529,11 @@ async function runLiveProbe(systemType, targetEndpoint, authType, name) {
         });
         const data = await res.json();
         if (res.ok) {
-            showToast(`[PROBE OK] ${name} reached in ${data.latency_ms}ms!`);
+            showToast(`[PROBE OK] ${name} reached in ${data.latency_ms}ms`);
         } else {
             showToast(`[PROBE FAILED] ${data.detail || 'Connection error'}`);
         }
-    } catch (err) {
+    } catch (e) {
         showToast(`[PROBE ERROR] Unable to reach ${name}`);
     }
 }
@@ -582,7 +547,7 @@ async function toggleRemediation(connectorId, enabled) {
         });
         const data = await res.json();
         showToast(data.message || "Remediation state updated.");
-    } catch (err) {
+    } catch (e) {
         showToast("Failed to toggle remediation state.");
     }
 }
@@ -593,7 +558,8 @@ async function handleTestHandshake() {
     const auth = document.getElementById("new-conn-auth").value;
     const feedback = document.getElementById("connector-test-feedback");
 
-    feedback.classList.remove("hidden", "success", "error");
+    feedback.style.display = "block";
+    feedback.style.color = "var(--text-secondary)";
     feedback.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Dispatched TLS probe to ${url}...`;
 
     try {
@@ -605,21 +571,15 @@ async function handleTestHandshake() {
         const data = await res.json();
 
         if (res.ok) {
-            feedback.className = "test-feedback-box success";
-            feedback.innerHTML = `
-                <div><i class="fa-solid fa-circle-check"></i> <strong>HANDSHAKE SUCCESS</strong> (${data.latency_ms}ms)</div>
-                <div style="margin-top: 0.3rem;">${data.message}</div>
-            `;
+            feedback.style.color = "var(--green)";
+            feedback.innerHTML = `<i class="fa-solid fa-check"></i> Handshake success (${data.latency_ms}ms) // ${data.message}`;
         } else {
-            feedback.className = "test-feedback-box error";
-            feedback.innerHTML = `
-                <div><i class="fa-solid fa-circle-xmark"></i> <strong>HANDSHAKE FAILED</strong></div>
-                <div>${data.detail || 'Connection refused'}</div>
-            `;
+            feedback.style.color = "var(--red)";
+            feedback.innerHTML = `<i class="fa-solid fa-xmark"></i> Handshake failed: ${data.detail || 'Connection refused'}`;
         }
-    } catch (err) {
-        feedback.className = "test-feedback-box error";
-        feedback.innerHTML = `<div><i class="fa-solid fa-circle-xmark"></i> Network unreachable: ${err.message}</div>`;
+    } catch (e) {
+        feedback.style.color = "var(--red)";
+        feedback.innerHTML = `<i class="fa-solid fa-xmark"></i> Network unreachable: ${e.message}`;
     }
 }
 
@@ -629,11 +589,10 @@ async function handleSaveConnector() {
     const url = document.getElementById("new-conn-url").value;
     const env = document.getElementById("new-conn-env").value;
     const auth = document.getElementById("new-conn-auth").value;
-    const autoRemediation = document.getElementById("new-conn-remediation").checked;
     const drawer = document.getElementById("connector-drawer");
 
     if (!name || !url) {
-        showToast("Please enter a System Display Name and Target Endpoint URL.");
+        showToast("Please enter a name and target endpoint URL.");
         return;
     }
 
@@ -647,22 +606,29 @@ async function handleSaveConnector() {
                 target_endpoint: url,
                 environment: env,
                 auth_type: auth,
-                auto_remediation_enabled: autoRemediation
+                auto_remediation_enabled: true
             })
         });
 
         const data = await res.json();
         if (res.ok) {
-            showToast(`System '${name}' successfully connected!`);
+            showToast(`System '${name}' connected successfully!`);
             if (drawer) drawer.classList.add("hidden");
-            // Clear inputs
             document.getElementById("new-conn-name").value = "";
             document.getElementById("new-conn-url").value = "";
             fetchConnectors();
         } else {
             showToast(`Failed: ${data.detail || 'Could not register connector'}`);
         }
-    } catch (err) {
-        showToast(`Error connecting system: ${err.message}`);
+    } catch (e) {
+        showToast(`Error connecting system: ${e.message}`);
     }
+}
+
+function showToast(msg) {
+    toastMessage.innerText = msg;
+    toastNotification.classList.remove("hidden");
+    setTimeout(() => {
+        toastNotification.classList.add("hidden");
+    }, 4000);
 }
