@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSRE — Autonomous DevOps & SRE Operations Console</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Pro Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Gold & Black Styling -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Command Navigation -->
+    <header class="command-header">
+        <div class="header-left">
+            <div class="brand-container">
+                <div class="brand-crest">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span class="gold-pulse-ring"></span>
+                </div>
+                <div class="brand-info">
+                    <h1>Auto<span class="gold-text">SRE</span></h1>
+                    <span class="brand-tag">Autonomous Cloud Control Plane</span>
+                </div>
+            </div>
+            
+            <div class="agent-mode-badge" id="agent-mode-badge">
+                <span class="gold-beacon"></span>
+                <span class="mode-text">AI AGENT: <strong class="gold-highlight">ARMED & AUTONOMOUS</strong></span>
+            </div>
+        </div>
+
+        <div class="header-center-metrics">
+            <div class="quick-metric">
+                <span class="metric-label">FLEET HEALTH</span>
+                <span class="metric-value gold-text" id="fleet-health-val">100%</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="quick-metric">
+                <span class="metric-label">ACTIVE INCIDENTS</span>
+                <span class="metric-value" id="active-incidents-count">0</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="quick-metric">
+                <span class="metric-label">AUTO-RESOLVED</span>
+                <span class="metric-value gold-text" id="resolved-incidents-count">0</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="quick-metric">
+                <span class="metric-label">MTTR (AVG)</span>
+                <span class="metric-value gold-text">12.4s</span>
+            </div>
+        </div>
+
+        <div class="header-right-actions">
+            <button class="gold-btn primary-gold" id="btn-trigger-failure">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Simulate Outage</span>
+            </button>
+            <button class="gold-btn secondary-gold" id="btn-refresh-telemetry" title="Refresh Live State">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Operations Grid -->
+    <main class="console-body">
+        
+        <!-- Fleet Microservice Status Grid -->
+        <section class="section-container">
+            <div class="section-header">
+                <div class="title-with-icon">
+                    <i class="fa-solid fa-network-wired gold-icon"></i>
+                    <h2>Target Microservice Fleet</h2>
+                </div>
+                <span class="timestamp-label" id="last-ping-time">Live Scrapes via Prometheus & K8s</span>
+            </div>
+
+            <div class="fleet-grid" id="fleet-grid-container">
+                <!-- Populated dynamically by app.js -->
+                <div class="fleet-card skeleton-card">Loading fleet status...</div>
+            </div>
+        </section>
+
+        <!-- Two-Column Operations Layout -->
+        <div class="operations-columns">
+            
+            <!-- Left Column: Incidents Stream -->
+            <section class="panel-card incident-stream-panel">
+                <div class="panel-header">
+                    <div class="title-with-icon">
+                        <i class="fa-solid fa-triangle-exclamation gold-icon"></i>
+                        <h3>Active & Recent Incidents</h3>
+                    </div>
+                    <span class="badge gold-badge" id="incident-stream-badge">Live Feed</span>
+                </div>
+
+                <div class="incidents-list" id="incidents-list-container">
+                    <!-- Populated dynamically -->
+                    <div class="empty-state">
+                        <i class="fa-solid fa-shield-check gold-icon large-icon"></i>
+                        <p>No active critical incidents detected. Microservice fleet operating normally.</p>
+                        <button class="gold-btn outline-gold" id="btn-empty-trigger">Inject Test Failure Cascade</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Agent Reasoning & Diagnostic Terminal -->
+            <section class="panel-card agent-terminal-panel">
+                <div class="panel-header">
+                    <div class="title-with-icon">
+                        <i class="fa-solid fa-brain gold-icon"></i>
+                        <h3>AutoSRE LangGraph & Gemini Reasoning Feed</h3>
+                    </div>
+                    <div class="terminal-dots">
+                        <span class="dot gold-dot"></span>
+                        <span class="dot gold-dot"></span>
+                        <span class="dot gold-dot"></span>
+                    </div>
+                </div>
+
+                <!-- Incident Step-by-Step Flow Viewer -->
+                <div class="diagnostic-breakdown-card" id="agent-flow-viewer">
+                    <div class="flow-placeholder">
+                        <i class="fa-solid fa-fingerprint gold-icon large-icon"></i>
+                        <h4>AI Agent On Standby</h4>
+                        <p>Click on any incident from the left stream to inspect the LangGraph telemetry scrape, Isolation Forest anomaly score, Gemini RCA diagnosis, and policy verification ledger.</p>
+                    </div>
+                </div>
+
+                <!-- Immutable Audit Ledger Table -->
+                <div class="audit-ledger-container">
+                    <div class="ledger-header">
+                        <h4><i class="fa-solid fa-book-bookmark gold-icon"></i> Immutable Remediation Ledger</h4>
+                    </div>
+                    <div class="table-scroller">
+                        <table class="gold-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Target</th>
+                                    <th>Operator</th>
+                                    <th>Policy Gate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-ledger-tbody">
+                                <tr>
+                                    <td colspan="5" class="empty-cell">No remediation actions executed yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Outage Simulator Modal -->
+    <div class="modal-backdrop hidden" id="outage-modal">
+        <div class="gold-modal-content">
+            <div class="modal-header">
+                <div class="title-with-icon">
+                    <i class="fa-solid fa-radiation gold-icon"></i>
+                    <h3>Inject Production Chaos</h3>
+                </div>
+                <button class="close-modal-btn" id="btn-close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Trigger an intentional failure condition to observe the AI Agent autonomously detect, diagnose with Gemini, retrieve runbooks, and self-heal.</p>
+                
+                <div class="chaos-options">
+                    <div class="chaos-option-card selected" data-chaos="db_pool">
+                        <div class="chaos-icon"><i class="fa-solid fa-database"></i></div>
+                        <div class="chaos-info">
+                            <h4>Database Connection Pool Exhaustion</h4>
+                            <p>Targets <code>payment-service</code>. Causes 503 cascades and high latency.</p>
+                        </div>
+                    </div>
+
+                    <div class="chaos-option-card" data-chaos="oom">
+                        <div class="chaos-icon"><i class="fa-solid fa-memory"></i></div>
+                        <div class="chaos-info">
+                            <h4>OOMKilled Memory Leak Cascade</h4>
+                            <p>Targets <code>user-service</code>. Allocates runaway heap chunks.</p>
+                        </div>
+                    </div>
+
+                    <div class="chaos-option-card" data-chaos="latency">
+                        <div class="chaos-icon"><i class="fa-solid fa-stopwatch"></i></div>
+                        <div class="chaos-info">
+                            <h4>Downstream Cascade Timeout</h4>
+                            <p>Injects 4500ms delay causing <code>order-service</code> timeout cascades.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="gold-btn outline-gold" id="btn-cancel-modal">Cancel</button>
+                <button class="gold-btn primary-gold" id="btn-confirm-chaos">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Execute Failure Injection</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-notification hidden" id="toast-notify">
+        <div class="toast-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="toast-message" id="toast-text">Incident self-healed successfully!</div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>

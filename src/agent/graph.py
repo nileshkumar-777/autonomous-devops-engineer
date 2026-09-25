@@ -5,6 +5,7 @@ from typing import Dict, List, Any
 from src.agent.state import SREAgentState
 from src.agent.tools import SREClusterTools
 from src.agent.policies import PolicyGatekeeper
+from src.agent.llm_reasoner import GeminiDiagnosticReasoner
 from src.rag.retriever import RunbookRetriever
 from src.ml.log_parser import LogParser
 
@@ -16,9 +17,15 @@ class AutoSREAgent:
     Implements a closed-loop observe-analyze-act-verify state machine.
     """
 
-    def __init__(self, tools: SREClusterTools = None, retriever: RunbookRetriever = None):
+    def __init__(
+        self,
+        tools: SREClusterTools = None,
+        retriever: RunbookRetriever = None,
+        reasoner: GeminiDiagnosticReasoner = None,
+    ):
         self.tools = tools or SREClusterTools(use_simulator=True)
         self.retriever = retriever or RunbookRetriever()
+        self.reasoner = reasoner or GeminiDiagnosticReasoner()
 
     # --------------------------------------------------------------------------
     # Node 1: Incident Entry Node
@@ -103,49 +110,20 @@ class AutoSREAgent:
         target = state["target_service"]
         anomalies = state["anomalies_detected"]
         metrics = state["current_metrics"]
+        alert = state["trigger_alert"]
 
-        # Deterministic SRE diagnostic inference based on collected evidence
-        is_db_pool = any("pool exhausted" in a.get("raw_line", "").lower() for a in anomalies)
-        is_oom = any("oom" in a.get("raw_line", "").lower() for a in anomalies)
+        report = self.reasoner.diagnose(
+            service_name=target,
+            alert_name=alert,
+            metrics=metrics,
+            anomalies=anomalies,
+            runbooks=state["rag_runbooks"],
+        )
 
-        proposed_actions = []
+        state["diagnosis"] = report.root_cause
+        state["confidence"] = report.confidence
+        state["proposed_actions"] = [a.model_dump() for a in report.recommended_actions]
 
-        if is_db_pool or metrics.get("error_rate", 0) > 0.5:
-            state["diagnosis"] = (
-                f"Critical root cause identified in {target}: Database connection pool exhausted. "
-                "High request volume prevented idle connection reclamation, causing HTTP 503 cascades."
-            )
-            state["confidence"] = 0.94
-            proposed_actions.append({
-                "action_type": "restart_deployment",
-                "service_name": target,
-                "reason": "Clear hung DB connections by triggering a zero-downtime rolling restart.",
-            })
-            proposed_actions.append({
-                "action_type": "scale_deployment",
-                "service_name": target,
-                "replicas": 3,
-                "reason": "Scale to 3 replicas to distribute connection capacity.",
-            })
-        elif is_oom:
-            state["diagnosis"] = f"Memory exhaustion (OOMKilled) detected in {target}."
-            state["confidence"] = 0.91
-            proposed_actions.append({
-                "action_type": "restart_deployment",
-                "service_name": target,
-                "reason": "Flush memory heap via deployment restart.",
-            })
-        else:
-            state["diagnosis"] = f"Elevated transient latency detected in {target}."
-            state["confidence"] = 0.75
-            proposed_actions.append({
-                "action_type": "scale_deployment",
-                "service_name": target,
-                "replicas": 3,
-                "reason": "Scale capacity to absorb traffic.",
-            })
-
-        state["proposed_actions"] = proposed_actions
         logger.info("Diagnosis formulated (confidence=%.2f): %s", state["confidence"], state["diagnosis"][:80])
         return state
 

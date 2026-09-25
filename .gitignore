@@ -65,6 +65,9 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
+*.db
+*.sqlite
+*.sqlite3
 
 # ------------------------------------------------------------------------------
 # 3. Machine Learning Models, Vector DBs & Cache
