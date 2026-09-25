@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous DevOps Engineer — Architecture & Learning Roadmap</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <i class="fa-solid fa-robot"></i>
+                        <span class="pulse-dot"></span>
+                    </div>
+                    <div class="logo-text">
+                        <h1>AutoSRE</h1>
+                        <p>Autonomous SRE Agent</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-tab="dashboard" id="nav-dashboard">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn" data-tab="flow-guide" id="nav-flow-guide">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Flow Guide</span>
+                </button>
+                <button class="nav-btn" data-tab="setup-guide" id="nav-setup-guide">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Setup Guide</span>
+                </button>
+                <button class="nav-btn" data-tab="architecture" id="nav-architecture">
+                    <i class="fa-solid fa-network-wired"></i>
+                    <span>Architecture</span>
+                </button>
+                <button class="nav-btn" data-tab="agent-blueprint" id="nav-agent-blueprint">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Agent Blueprint</span>
+                </button>
+                <button class="nav-btn" data-tab="checklists" id="nav-checklists">
+                    <i class="fa-solid fa-tasks"></i>
+                    <span>Learning Roadmap</span>
+                </button>
+                <button class="nav-btn" data-tab="resources" id="nav-resources">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Resources</span>
+                </button>
+            </nav>
+
+            <!-- Sidebar Progress Card -->
+            <div class="progress-card">
+                <h3>Global Progress</h3>
+                <div class="progress-radial-container">
+                    <div class="progress-radial" id="global-progress-radial">
+                        <div class="progress-radial-inner">
+                            <span id="global-progress-percent">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="progress-caption"><span id="completed-tasks-count">0</span> of <span id="total-tasks-count">0</span> items completed</p>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-title">
+                    <h2 id="current-tab-title">Dashboard Overview</h2>
+                    <p id="current-tab-subtitle">Real-time status of your learning journey & system architecture.</p>
+                </div>
+                <div class="header-actions">
+                    <div class="system-status">
+                        <span class="status-indicator online"></span>
+                        <span>Agent Engine: Standby</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Panels -->
+            
+            <!-- Dashboard Panel -->
+            <div class="content-panel active" id="tab-dashboard">
+                <!-- Stat Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon purple"><i class="fa-solid fa-cubes"></i></div>
+                        <div class="stat-info">
+                            <h3>Microservices</h3>
+                            <p class="stat-value">4 Services</p>
+                            <span class="stat-desc">User, Order, Payment, Notify</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-gauge-high"></i></div>
+                        <div class="stat-info">
+                            <h3>Observability</h3>
+                            <p class="stat-value">Prometheus</p>
+                            <span class="stat-desc">Metrics & Grafana Setup</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green"><i class="fa-solid fa-brain"></i></div>
+                        <div class="stat-info">
+                            <h3>Anomaly Score</h3>
+                            <p class="stat-value" id="dashboard-anomaly-score">Normal</p>
+                            <span class="stat-desc">Isolation Forest Model</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red"><i class="fa-solid fa-check-double"></i></div>
+                        <div class="stat-info">
+                            <h3>Agent Tasks Complete</h3>
+                            <p class="stat-value" id="dashboard-resolved-count">0 / 6</p>
+                            <span class="stat-desc">LangGraph Setup Tracker</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Middle Grid: Phase Overview & Project Description -->
+                <div class="dashboard-grid">
+                    <!-- Phase Categories Card -->
+                    <div class="dashboard-card phase-overview-card">
+                        <div class="card-header">
+                            <h3>Roadmap Category Progress</h3>
+                        </div>
+                        <div class="category-progress-list">
+                            <div class="category-progress-item">
+                                <div class="category-meta">
+                                    <span>Category A: Infrastructure & Observability (Phases 1-3)</span>
+                                    <span class="category-percentage" id="cat-a-percent">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar purple-bar" id="cat-a-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="category-progress-item">
+                                <div class="category-meta">
+                                    <span>Category B: AI & Machine Learning Foundation (Phases 4-7)</span>
+                                    <span class="category-percentage" id="cat-b-percent">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar blue-bar" id="cat-b-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="category-progress-item">
+                                <div class="category-meta">
+                                    <span>Category C: Orchestration & Self-Healing (Phases 8-10)</span>
+                                    <span class="category-percentage" id="cat-c-percent">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar green-bar" id="cat-c-bar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project Overview Card -->
+                    <div class="dashboard-card project-summary-card">
+                        <div class="card-header">
+                            <h3>DevOps Agent Project Goals</h3>
+                        </div>
+                        <div class="project-summary-content">
+                            <p>Build an AI-driven, autonomous SRE framework that handles incidents safely on a local Kubernetes sandbox environment.</p>
+                            <ul class="goals-bullet-list">
+                                <li><i class="fa-solid fa-shield-halved purple-text"></i> <strong>Safe Execution Guardrails</strong>: Never allow LLMs to write arbitrary shell scripts. Restrict logic to structured tool schema allowlists.</li>
+                                <li><i class="fa-solid fa-rotate-left blue-text"></i> <strong>Closed-Loop Verification</strong>: Always check telemetry stats post-restart to confirm recovery.</li>
+                                <li><i class="fa-solid fa-server green-text"></i> <strong>OOP Backend</strong>: Construct FastAPI service models following SOLID patterns.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase Cards Grid -->
+                <div class="phase-cards-container">
+                    <div class="section-title">
+                        <h3>Detailed Phase Breakdowns</h3>
+                    </div>
+                    <div class="phase-cards-grid" id="dashboard-phase-cards">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Guide Panel -->
+            <div class="content-panel" id="tab-flow-guide">
+                <div class="setup-guide-header">
+                    <h3>Complete Step-by-Step Implementation Checklist</h3>
+                    <p>Chronological step-by-step master checklist. Expand each phase to view required tools, config scripts, and validation checkpoints.</p>
+                </div>
+                <div class="phases-accordion" id="flow-guide-accordion-container">
+                    <!-- Populated dynamically by app_v5.js -->
+                </div>
+            </div>
+
+            <!-- Setup Guide Panel -->
+            <div class="content-panel" id="tab-setup-guide">
+                <div class="setup-guide-header">
+                    <h3>Chronological Project Construction Timeline</h3>
+                    <p>Execute these 12 steps in sequence to construct your complete DevOps self-healing loop, resolving database, core app, monitoring, and machine learning model dependencies step-by-step.</p>
+                </div>
+                <div class="timeline-wrapper">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-container" id="setup-timeline-container">
+                        <!-- Populated dynamically by app_v5.js -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Architecture Panel -->
+            <div class="content-panel" id="tab-architecture">
+                <div class="architecture-layout">
+                    <!-- Right Sidebar details pane -->
+                    <div class="architecture-info-pane" id="architecture-detail-pane">
+                        <h3>System Component Explorer</h3>
+                        <p class="instruction-text">Click on any component in the diagram to inspect its role, interfaces, data contracts, and implementation guidelines.</p>
+                        <div class="details-content hidden" id="architecture-details">
+                            <h4 id="detail-title">Component Name</h4>
+                            <div class="badge" id="detail-badge">Category</div>
+                            <p class="detail-description" id="detail-desc">Details go here...</p>
+                            <div class="detail-section">
+                                <h5>Input Contract:</h5>
+                                <code id="detail-input">JSON/Metrics</code>
+                            </div>
+                            <div class="detail-section">
+                                <h5>Output Contract:</h5>
+                                <code id="detail-output">Actions</code>
+                            </div>
+                            <div class="detail-section">
+                                <h5>Key Files:</h5>
+                                <ul id="detail-files">
+                                    <li>file.py</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Left Diagram Area -->
+                    <div class="architecture-diagram-pane">
+                        <div class="diagram-controls">
+                            <span>Interactive Architecture Topology</span>
+                            <span class="help-label"><i class="fa-solid fa-circle-info"></i> Click nodes to inspect</span>
+                        </div>
+                        <div class="svg-diagram-wrapper">
+                            <div class="interactive-diagram">
+                                <!-- Developer / User -->
+                                <div class="diagram-layer user-layer">
+                                    <div class="node user-node" data-node="developer">
+                                        <i class="fa-solid fa-laptop-code"></i>
+                                        <span>Developer Interface</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-arrow vertical-down"></div>
+
+                                <!-- Frontend / React Dashboard -->
+                                <div class="diagram-layer web-layer">
+                                    <div class="node dashboard-node" data-node="dashboard">
+                                        <i class="fa-solid fa-cubes-stacked"></i>
+                                        <span>React SRE Dashboard</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-arrow vertical-down"></div>
+
+                                <!-- Backend / FastAPI API Gateway -->
+                                <div class="diagram-layer api-layer">
+                                    <div class="node backend-node" data-node="backend">
+                                        <i class="fa-solid fa-server"></i>
+                                        <span>FastAPI OOP Backend</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-arrow vertical-down"></div>
+
+                                <!-- LangGraph AI Agent Layer -->
+                                <div class="diagram-layer agent-layer">
+                                    <div class="node langgraph-node" data-node="agent">
+                                        <i class="fa-solid fa-robot"></i>
+                                        <span>LangGraph Agent Layer</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-split-container">
+                                    <div class="flow-split-arrow left"></div>
+                                    <div class="flow-split-arrow center"></div>
+                                    <div class="flow-split-arrow right"></div>
+                                </div>
+
+                                <!-- The 3 Core Diagnostic Brains -->
+                                <div class="diagram-layer brains-layer">
+                                    <div class="node brain-node" data-node="ml">
+                                        <i class="fa-solid fa-square-poll-vertical"></i>
+                                        <span>ML Anomaly Detector</span>
+                                    </div>
+                                    <div class="node brain-node" data-node="rag">
+                                        <i class="fa-solid fa-book-open"></i>
+                                        <span>RAG Runbook DB</span>
+                                    </div>
+                                    <div class="node brain-node" data-node="llm">
+                                        <i class="fa-solid fa-brain"></i>
+                                        <span>LLM Reasoner</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-split-container inverted">
+                                    <div class="flow-split-arrow left inverted"></div>
+                                    <div class="flow-split-arrow center inverted"></div>
+                                    <div class="flow-split-arrow right inverted"></div>
+                                </div>
+
+                                <!-- Decision, Policy & Executor Loop -->
+                                <div class="diagram-layer decision-layer">
+                                    <div class="node rca-node" data-node="rca">
+                                        <i class="fa-solid fa-magnifying-glass-chart"></i>
+                                        <span>Root Cause Analyzer</span>
+                                    </div>
+                                    <div class="node policy-node" data-node="policy">
+                                        <i class="fa-solid fa-shield-halved"></i>
+                                        <span>Policy Validator</span>
+                                    </div>
+                                    <div class="node executor-node" data-node="executor">
+                                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                                        <span>Tool Executor</span>
+                                    </div>
+                                </div>
+
+                                <div class="flow-arrow vertical-down"></div>
+
+                                <!-- Infrastructure Core Layer -->
+                                <div class="diagram-layer infra-layer">
+                                    <div class="node infra-node" data-node="kubernetes">
+                                        <i class="fa-solid fa-dharmachakra"></i>
+                                        <span>Kubernetes Cluster</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Blueprint Panel -->
+            <div class="content-panel" id="tab-agent-blueprint">
+                <div class="agent-blueprint-layout">
+                    <!-- Left: Interactive Graph -->
+                    <div class="agent-graph-card">
+                        <div class="agent-card-header">
+                            <h3>SRE Agent LangGraph Logic</h3>
+                            <span class="help-label"><i class="fa-solid fa-circle-info"></i> Click nodes to view code blueprints</span>
+                        </div>
+                        
+                        <div class="agent-flow-graph">
+                            <!-- Visual Vertical Graph Node Loop -->
+                            <div class="graph-node active" data-agent-node="entry">
+                                <div class="node-icon"><i class="fa-solid fa-play"></i></div>
+                                <div class="node-content">
+                                    <h4>1. Incident Entry Node</h4>
+                                    <p>Receives Prometheus alerts & initializes state context.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="scraper">
+                                <div class="node-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                                <div class="node-content">
+                                    <h4>2. Telemetry Scraper Node</h4>
+                                    <p>Invokes tools to gather pod statuses, event lists, and logs.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="rag_search">
+                                <div class="node-icon"><i class="fa-solid fa-book-open"></i></div>
+                                <div class="node-content">
+                                    <h4>3. RAG Query Node</h4>
+                                    <p>Performs similarity search on historic runbook databases.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="llm_diagnose">
+                                <div class="node-icon"><i class="fa-solid fa-brain"></i></div>
+                                <div class="node-content">
+                                    <h4>4. LLM Diagnostic Reasoner</h4>
+                                    <p>Generates root cause analysis and proposes fixes.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="policy_gate">
+                                <div class="node-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                                <div class="node-content">
+                                    <h4>5. Policy Gatekeeper Node</h4>
+                                    <p>Checks actions against strict, allowlisted security rules.</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="action_exec">
+                                <div class="node-icon"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                <div class="node-content">
+                                    <h4>6. Tool Executor Node</h4>
+                                    <p>Modifies cluster state (restarts, scales, rollbacks).</p>
+                                </div>
+                            </div>
+                            
+                            <div class="graph-connector-line"></div>
+                            
+                            <div class="graph-node" data-agent-node="verifier">
+                                <div class="node-icon"><i class="fa-solid fa-square-check"></i></div>
+                                <div class="node-content">
+                                    <h4>7. Verification Loop Node</h4>
+                                    <p>Monitors recovery metrics or routes back to diagnostics.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Technical blueprint specs -->
+                    <div class="agent-spec-card">
+                        <div class="spec-header">
+                            <h4 id="agent-spec-title">State Schema Definition</h4>
+                            <span class="badge" id="agent-spec-badge">Configuration</span>
+                        </div>
+                        
+                        <p class="spec-desc" id="agent-spec-desc">Click nodes on the left to see the specific Python code template and data contract for each step of the agent workflow.</p>
+                        
+                        <div class="spec-code-block">
+                            <div class="code-header">
+                                <span id="agent-code-filename">state.py</span>
+                                <button class="copy-btn" id="agent-spec-copy-btn"><i class="fa-regular fa-copy"></i></button>
+                            </div>
+                            <pre><code id="agent-spec-code"># Click a node to load Python specifications...</code></pre>
+                        </div>
+
+                        <!-- Sub checklist for agent setup -->
+                        <div class="agent-checklist-section">
+                            <h5>Agent Task Checklist</h5>
+                            <p class="checklist-subtext">Implement these step-by-step tasks to construct the agent engine:</p>
+                            <div class="agent-sub-checklist" id="agent-tasks-container">
+                                <!-- Populated dynamically by app.js -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checklists Panel -->
+            <div class="content-panel" id="tab-checklists">
+                <div class="checklists-control-bar">
+                    <div class="filter-group">
+                        <button class="filter-btn active" data-filter="all">All Phases</button>
+                        <button class="filter-btn" data-filter="cat-a">Infrastructure & Observability</button>
+                        <button class="filter-btn" data-filter="cat-b">AI & ML Foundation</button>
+                        <button class="filter-btn" data-filter="cat-c">Orchestration & Production</button>
+                    </div>
+                    <div class="completion-summary">
+                        <span>Completion:</span>
+                        <strong id="checklist-completion-txt">0/30 (0%)</strong>
+                    </div>
+                </div>
+
+                <div class="phases-accordion" id="phases-accordion-container">
+                    <!-- Populated dynamically by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Resources Panel -->
+            <div class="content-panel" id="tab-resources">
+                <div class="resources-grid">
+                    <div class="resources-main">
+                        <div class="dashboard-card">
+                            <h3>Key Technology Documentation & Quick References</h3>
+                            
+                            <div class="resource-block">
+                                <h4><i class="fa-brands fa-docker purple-text"></i> Phase 1: Docker Commands</h4>
+                                <p>Common commands for packaging and running your DevOps microservices locally.</p>
+                                <pre><code># Build microservice container
+docker build -t payment-service:v1.0 ./src/microservices/payment-service
+
+# Run with environment configs
+docker run -d --name payment -p 8000:8000 -e DB_HOST=postgres payment-service:v1.0</code></pre>
+                            </div>
+
+                            <div class="resource-block">
+                                <h4><i class="fa-solid fa-dharmachakra blue-text"></i> Phase 1-2: Kubernetes Commands</h4>
+                                <p>Essential commands for managing your local cluster namespace and inspecting stats.</p>
+                                <pre><code># Create namespace
+kubectl create namespace production
+
+# List all pods and resources
+kubectl get all -n production
+
+# Tail payment service logs
+kubectl logs -f -l app=payment-service -n production
+
+# View pod details
+kubectl describe pod payment-service-xxx -n production</code></pre>
+                            </div>
+
+                            <div class="resource-block">
+                                <h4><i class="fa-solid fa-magnifying-glass-chart green-text"></i> Phase 4: Anomaly Detection (Isolation Forest)</h4>
+                                <p>Basic Python template for loading dataset features and running predictions.</p>
+                                <pre><code>from sklearn.ensemble import IsolationForest
+import numpy as np
+
+# Features: [CPU_Rate, Memory_Rate, Error_Frequency_per_Min]
+X_train = np.array([[30, 45, 0], [45, 52, 1], [25, 40, 0], [92, 88, 450]]) # Sample normal + anomaly
+
+# Train model
+detector = IsolationForest(contamination=0.1, random_state=42)
+detector.fit(X_train)
+
+# Predict: -1 for anomaly, 1 for normal
+prediction = detector.predict([[95, 91, 510]])
+print("Anomaly Detected!" if prediction[0] == -1 else "System Normal")</code></pre>
+                            </div>
+
+                            <div class="resource-block">
+                                <h4><i class="fa-solid fa-robot orange-text"></i> Phase 8: LangGraph Agent Schema</h4>
+                                <p>Structure of states used in agent decision chains.</p>
+                                <pre><code>from typing import TypedDict, List
+
+class SREAgentState(TypedDict):
+    incident_id: str
+    target_service: str
+    current_metrics: dict
+    logs: List[str]
+    rag_runbooks: List[str]
+    diagnosis: str
+    proposed_actions: List[dict]
+    actions_executed: List[dict]
+    verification_metrics: dict
+    status: str</code></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="resources-sidebar">
+                        <div class="dashboard-card">
+                            <h3>Learning Resources</h3>
+                            <ul class="resource-links-list">
+                                <li>
+                                    <a href="https://kubernetes.io/docs/home/" target="_blank">
+                                        <i class="fa-solid fa-external-link"></i> Kubernetes Official Docs
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="https://prometheus.io/docs/introduction/overview/" target="_blank">
+                                        <i class="fa-solid fa-external-link"></i> Prometheus Observability
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="https://fastapi.tiangolo.com/" target="_blank">
+                                        <i class="fa-solid fa-external-link"></i> FastAPI Framework Reference
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="https://langchain-ai.github.io/langgraph/" target="_blank">
+                                        <i class="fa-solid fa-external-link"></i> LangGraph Documentation
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html" target="_blank">
+                                        <i class="fa-solid fa-external-link"></i> scikit-learn Isolation Forest
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="dashboard-card glossary-card">
+                            <h3>Glossary</h3>
+                            <dl class="glossary-list">
+                                <dt>BGL Log Dataset</dt>
+                                <dd>BlueGene/L supercomputer log file used to test log parsing and pattern analysis anomaly models.</dd>
+                                
+                                <dt>RAG (Retrieval-Augmented Generation)</dt>
+                                <dd>AI architecture retrieving domain-specific runbooks to contextually aid the LLM resolver.</dd>
+                                
+                                <dt>Self-Healing Loop</dt>
+                                <dd>A continuous observe-analyze-act-verify controller cycle standard in autonomous SRE architectures.</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app_v6.js" defer></script>
+</body>
+</html>
