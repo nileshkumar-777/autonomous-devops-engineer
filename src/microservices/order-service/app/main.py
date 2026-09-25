@@ -46,11 +46,37 @@ class ChaosConfig(BaseModel):
     latency_ms: Optional[int] = 0
     error_rate: Optional[float] = 0.0
 
+rate_limiter_state = {
+    "enabled": True,
+    "max_requests_per_sec": 100,
+    "request_history": [],
+    "total_throttled": 0,
+}
+
 @app.middleware("http")
-async def chaos_middleware(request: Request, call_next):
-    if request.url.path in ["/health", "/metrics", "/chaos/status", "/chaos/reset"]:
+async def traffic_and_chaos_middleware(request: Request, call_next):
+    if request.url.path in ["/health", "/metrics", "/chaos/status", "/chaos/reset", "/ratelimit/status"]:
         return await call_next(request)
 
+    # 1. Rate Limiting & Load Shedding Protection
+    if rate_limiter_state["enabled"]:
+        now = time.time()
+        # Clean timestamps older than 1 second
+        rate_limiter_state["request_history"] = [t for t in rate_limiter_state["request_history"] if now - t < 1.0]
+        
+        if len(rate_limiter_state["request_history"]) >= rate_limiter_state["max_requests_per_sec"]:
+            rate_limiter_state["total_throttled"] += 1
+            logger.warning("Traffic Surge Throttled: %d requests/sec exceeded max limit of %d. Returning 429.", 
+                           len(rate_limiter_state["request_history"]), rate_limiter_state["max_requests_per_sec"])
+            return Response(
+                content='{"error": "Too Many Requests", "detail": "Traffic surge exceeded capacity. Throttling applied to protect database.", "status": 429}',
+                status_code=429,
+                media_type="application/json",
+                headers={"Retry-After": "2"}
+            )
+        rate_limiter_state["request_history"].append(now)
+
+    # 2. Chaos Injection Simulation
     if chaos_state["latency_ms"] > 0:
         time.sleep(chaos_state["latency_ms"] / 1000.0)
 
@@ -61,6 +87,18 @@ async def chaos_middleware(request: Request, call_next):
             return Response(content='{"error": "Simulated Order Pipeline Failure"}', status_code=500, media_type="application/json")
 
     return await call_next(request)
+
+@app.get("/ratelimit/status")
+def get_ratelimit_status():
+    now = time.time()
+    current_rps = len([t for t in rate_limiter_state["request_history"] if now - t < 1.0])
+    return {
+        "rate_limiting_enabled": rate_limiter_state["enabled"],
+        "current_requests_per_sec": current_rps,
+        "max_capacity_per_sec": rate_limiter_state["max_requests_per_sec"],
+        "total_requests_throttled": rate_limiter_state["total_throttled"],
+        "protection_status": "ACTIVE (HTTP 429 Load Shedding)",
+    }
 
 @app.get("/health")
 def health_check():

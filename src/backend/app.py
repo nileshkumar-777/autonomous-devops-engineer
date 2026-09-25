@@ -197,7 +197,28 @@ def trigger_and_heal_incident(req: TriggerIncidentRequest, db: Session = Depends
     """
     Triggers an incident, executes the full LangGraph AutoSRE self-healing loop,
     and commits the incident report and audit records to SQLite.
+    Suppresses alert storms when duplicate alerts hit concurrently.
     """
+    # 1. Alert Storm Deduplication: Prevent redundant concurrent runs on same service
+    ongoing_incident = db.query(IncidentRecord).filter(
+        IncidentRecord.service_name == req.service_name,
+        IncidentRecord.status.in_(["INVESTIGATING", "ACTIVE", "PENDING_APPROVAL"])
+    ).first()
+
+    if ongoing_incident:
+        return {
+            "message": f"Alert Storm Suppressed: Active remediation already in progress for '{req.service_name}'. Alert merged into incident '{ongoing_incident.id}'.",
+            "incident_id": ongoing_incident.id,
+            "status": "DEDUPED",
+            "result": {
+                "verification_status": ongoing_incident.status,
+                "target_service": req.service_name,
+                "trigger_alert": req.alert_name,
+                "actions_executed": [],
+                "details": "Alert storm deduplication prevented redundant agent execution.",
+            }
+        }
+
     inc_id = f"inc_{uuid.uuid4().hex[:8]}"
 
     # Execute Agent Loop
