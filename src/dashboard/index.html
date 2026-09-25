@@ -4,593 +4,733 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AutoSRE — Autonomous DevOps & SRE Control Console</title>
-    <!-- Modern High-Density Fonts -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Top Command Navigation Header -->
-    <header class="top-header">
-        <div class="header-left">
-            <div class="brand-box">
-                <div class="brand-logo-icon">
-                    <i class="fa-solid fa-terminal"></i>
+    <div class="app-container">
+        
+        <!-- Left Command Sidebar -->
+        <aside class="app-sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-brand">
+                    <div class="brand-icon-box">
+                        <i class="fa-solid fa-bolt-lightning"></i>
+                    </div>
+                    <div class="brand-title-wrap">
+                        <h1>AutoSRE</h1>
+                        <span>Control Console v2.4.0</span>
+                    </div>
                 </div>
-                <span class="brand-text">AutoSRE</span>
-                <span class="brand-tag">v2.4.0</span>
+
+                <!-- Navigation Groups -->
+                <nav class="sidebar-nav">
+                    <div>
+                        <div class="nav-group-title">Operations</div>
+                        <div class="nav-items">
+                            <button class="sidebar-tab-btn active" data-tab="tab-fleet">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-network-wired"></i>
+                                    <span>Fleet & Topology</span>
+                                </div>
+                            </button>
+                            <button class="sidebar-tab-btn" data-tab="tab-incidents">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <span>Incident War Room</span>
+                                </div>
+                                <span class="badge-pill" id="badge-incident-count" style="display: none;">0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="nav-group-title">Governance & Safety</div>
+                        <div class="nav-items">
+                            <button class="sidebar-tab-btn" data-tab="tab-security">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                    <span>Security & Guardrails</span>
+                                </div>
+                            </button>
+                            <button class="sidebar-tab-btn" data-tab="tab-ledger">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-database"></i>
+                                    <span>Audit Ledger</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="nav-group-title">Testing & Cloud</div>
+                        <div class="nav-items">
+                            <button class="sidebar-tab-btn" data-tab="tab-chaos">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-flask"></i>
+                                    <span>Chaos Fault Lab</span>
+                                </div>
+                                <span class="badge-pill">6</span>
+                            </button>
+                            <button class="sidebar-tab-btn" data-tab="tab-connectors">
+                                <div class="tab-left">
+                                    <i class="fa-solid fa-cloud"></i>
+                                    <span>Cloud Integrations</span>
+                                </div>
+                                <span class="badge-pill" id="badge-connector-count">5</span>
+                            </button>
+                        </div>
+                    </div>
+                </nav>
             </div>
 
-            <!-- Segmented Linear-Style Tab Control -->
-            <nav class="segmented-nav">
-                <button class="nav-tab-btn active" data-tab="tab-fleet">
-                    <i class="fa-solid fa-server"></i>
-                    <span>Fleet & Telemetry</span>
-                </button>
-                <button class="nav-tab-btn" data-tab="tab-incidents">
-                    <i class="fa-solid fa-bolt-lightning"></i>
-                    <span>Incidents & Trace</span>
-                </button>
-                <button class="nav-tab-btn" data-tab="tab-security">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    <span>Security Guardrails</span>
-                </button>
-                <button class="nav-tab-btn" data-tab="tab-chaos">
-                    <i class="fa-solid fa-flask-vial"></i>
-                    <span>Chaos Fault Lab</span>
-                </button>
-                <button class="nav-tab-btn" data-tab="tab-ledger">
-                    <i class="fa-solid fa-receipt"></i>
-                    <span>Audit Ledger</span>
-                </button>
-                <button class="nav-tab-btn" data-tab="tab-connectors">
-                    <i class="fa-solid fa-network-wired"></i>
-                    <span>Integrations</span>
-                    <span class="badge-pill" id="nav-connectors-count">5</span>
-                </button>
-            </nav>
-        </div>
-
-        <div class="header-right">
-            <div class="cluster-context-pill">
-                <span class="dot-status green" id="cluster-indicator"></span>
-                <span>k8s-production-us-east-1</span>
-            </div>
-            <button class="btn btn-danger btn-xs" id="btn-quick-outage">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>Inject Fault</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Active Outage Alert Bar -->
-    <div class="active-outage-bar hidden" id="outage-alert-banner">
-        <div class="outage-bar-info">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <div>
-                <strong id="banner-title">CRITICAL FAILURE DETECTED</strong>
-                <span id="banner-desc">AutoSRE Agent intercepted alert and is executing self-healing pipeline...</span>
-            </div>
-        </div>
-        <div class="outage-bar-action">
-            <span class="tag-healing">SELF-HEALING ACTIVE</span>
-        </div>
-    </div>
-
-    <!-- Main Container -->
-    <main class="content-wrapper">
-
-        <!-- ===================================================================
-             TAB 1: FLEET & TELEMETRY
-             =================================================================== -->
-        <div class="tab-pane active" id="tab-fleet">
-            <!-- KPI Metric Strip -->
-            <div class="kpi-strip">
-                <div class="kpi-card">
-                    <div class="kpi-card-header">
-                        <span>Cluster Health</span>
-                        <i class="fa-solid fa-heart-pulse" style="color: var(--green);"></i>
+            <!-- Sidebar Footer Status -->
+            <div class="sidebar-footer">
+                <div class="agent-status-widget">
+                    <div class="status-header">
+                        <span class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span>Autonomous Engine</span>
+                        </span>
+                        <span class="badge-pill" style="color: var(--indigo); font-weight: 700;">ARMED</span>
                     </div>
-                    <div class="kpi-val" style="color: var(--green);" id="stat-fleet-health">100% HEALTHY</div>
-                    <div class="kpi-sub">Prometheus Telemetry: Active (15s scrape)</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-card-header">
-                        <span>Active Incidents</span>
-                        <i class="fa-solid fa-bell" style="color: var(--amber);"></i>
+                    <div class="status-meta">
+                        <div>Model: <strong>Gemini 1.5 Flash</strong></div>
+                        <div>Cluster: <strong>prod-us-east-1</strong></div>
                     </div>
-                    <div class="kpi-val" id="stat-active-incidents">0</div>
-                    <div class="kpi-sub">Currently under investigation</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-card-header">
-                        <span>Auto-Remediated</span>
-                        <i class="fa-solid fa-check-double" style="color: var(--blue);"></i>
-                    </div>
-                    <div class="kpi-val" style="color: var(--blue);" id="stat-resolved-incidents">0</div>
-                    <div class="kpi-sub">Verified via PromQL closed-loop</div>
-                </div>
-
-                <div class="kpi-card">
-                    <div class="kpi-card-header">
-                        <span>Agent Engine</span>
-                        <i class="fa-solid fa-microchip" style="color: var(--indigo);"></i>
-                    </div>
-                    <div class="kpi-val" style="font-size: 15px; margin-top: 0.6rem;">Gemini 1.5 Flash</div>
-                    <div class="kpi-sub">Drain + IsolationForest Anomaly Model</div>
+                    <button class="btn btn-danger btn-xs" id="btn-quick-outage" style="width: 100%; justify-content: center; margin-top: 4px;">
+                        <i class="fa-solid fa-bolt"></i> Simulate Failure
+                    </button>
                 </div>
             </div>
+        </aside>
 
-            <!-- Monitored Microservice Fleet Table -->
-            <div class="panel">
-                <div class="panel-header-bar">
-                    <div class="panel-title">
-                        <i class="fa-solid fa-cubes-stacked" style="color: var(--blue);"></i>
-                        <span>Monitored Service Fleet</span>
-                    </div>
-                    <div class="panel-meta">Namespace: production // 4 Services Tracked</div>
+        <!-- Main Stage Area -->
+        <main class="app-stage">
+            
+            <!-- Top App Bar -->
+            <header class="stage-topbar">
+                <div class="breadcrumbs">
+                    <span>Infrastructure</span>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 10px;"></i>
+                    <span>production-cluster</span>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 10px;"></i>
+                    <span class="current" id="breadcrumb-title">Fleet & Topology</span>
                 </div>
 
-                <div class="table-responsive">
-                    <table class="dense-table">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Service Name</th>
-                                <th>Active Replicas</th>
-                                <th>P95 Latency</th>
-                                <th>Error Rate (5xx)</th>
-                                <th>CPU Saturation</th>
-                                <th>Memory RSS</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="fleet-services-table-body">
+                <div class="cluster-telemetry-strip">
+                    <div class="telemetry-chip">
+                        <i class="fa-solid fa-circle" style="color: var(--emerald); font-size: 8px;"></i>
+                        <span>K8s: <strong>v1.29.2</strong></span>
+                    </div>
+                    <div class="telemetry-chip">
+                        <span>P95 Latency: <strong id="topbar-latency">120ms</strong></span>
+                    </div>
+                    <div class="telemetry-chip">
+                        <span>Success Rate: <strong style="color: var(--emerald);" id="topbar-success-rate">99.98%</strong></span>
+                    </div>
+                    <button class="btn btn-secondary btn-xs" onclick="fetchFleetServices(); fetchSystemStatus();">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- Active Emergency Banner -->
+            <div class="outage-alert-banner hidden" id="outage-alert-banner">
+                <div class="banner-left">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <strong id="banner-title">CRITICAL INCIDENT DETECTED</strong>
+                        <p id="banner-desc">AutoSRE Agent intercepted alert and is running Gemini 1.5 Flash diagnosis & self-healing pipeline...</p>
+                    </div>
+                </div>
+                <span class="banner-badge">REMEDIATION IN PROGRESS</span>
+            </div>
+
+            <!-- Stage Content Panes -->
+            <div class="stage-content">
+
+                <!-- ===============================================================
+                     TAB 1: FLEET & TOPOLOGY VIEW
+                     =============================================================== -->
+                <div class="tab-pane active" id="tab-fleet">
+                    
+                    <!-- KPI Metric Ribbon -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-card-header">
+                                <span>Cluster Availability</span>
+                                <i class="fa-solid fa-heart-pulse" style="color: var(--emerald);"></i>
+                            </div>
+                            <div class="kpi-val" style="color: var(--emerald);" id="stat-fleet-health">100% HEALTHY</div>
+                            <div class="kpi-sub">
+                                <i class="fa-solid fa-arrow-trend-up" style="color: var(--emerald);"></i>
+                                <span>Prometheus Real-Time Stream (15s scrape)</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-card-header">
+                                <span>Active Outages</span>
+                                <i class="fa-solid fa-bell" style="color: var(--rose);"></i>
+                            </div>
+                            <div class="kpi-val" id="stat-active-incidents">0</div>
+                            <div class="kpi-sub">Pending autonomous resolution</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-card-header">
+                                <span>Auto-Remediated</span>
+                                <i class="fa-solid fa-check-double" style="color: var(--indigo);"></i>
+                            </div>
+                            <div class="kpi-val" style="color: var(--indigo);" id="stat-resolved-incidents">0</div>
+                            <div class="kpi-sub">Closed-loop verified zero-downtime</div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-card-header">
+                                <span>Policy Gatekeeper</span>
+                                <i class="fa-solid fa-shield-halved" style="color: var(--blue);"></i>
+                            </div>
+                            <div class="kpi-val" style="color: var(--blue);">Zero-Shell</div>
+                            <div class="kpi-sub">Hard allowlist boundary active</div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Microservice Mesh Topology -->
+                    <div class="glass-panel">
+                        <div class="panel-head">
+                            <div class="panel-head-title">
+                                <i class="fa-solid fa-diagram-project"></i>
+                                <h3>Microservice Dependency Mesh & Traffic Flow</h3>
+                            </div>
+                            <span class="badge-pill" style="color: var(--emerald); font-weight: 600;">LIVE TOPOLOGY</span>
+                        </div>
+
+                        <div class="topology-container">
+                            <!-- Node 1: Ingress -->
+                            <div class="topology-node" id="node-ingress">
+                                <div class="node-top">
+                                    <span class="node-name">Ingress Gateway</span>
+                                    <span class="status-badge healthy">TRAFFIC OK</span>
+                                </div>
+                                <div class="node-meta">Rate: 145 req/s</div>
+                            </div>
+
+                            <div class="topology-arrow"><i class="fa-solid fa-arrow-right-long"></i></div>
+
+                            <!-- Node 2: Order Service -->
+                            <div class="topology-node" id="node-order-service">
+                                <div class="node-top">
+                                    <span class="node-name">order-service</span>
+                                    <span class="status-badge healthy" id="topo-badge-order">ONLINE</span>
+                                </div>
+                                <div class="node-meta">Latency: <span id="topo-lat-order">120ms</span></div>
+                            </div>
+
+                            <div class="topology-arrow"><i class="fa-solid fa-arrow-right-long"></i></div>
+
+                            <!-- Node 3: Payment Service -->
+                            <div class="topology-node" id="node-payment-service">
+                                <div class="node-top">
+                                    <span class="node-name">payment-service</span>
+                                    <span class="status-badge healthy" id="topo-badge-payment">ONLINE</span>
+                                </div>
+                                <div class="node-meta">Latency: <span id="topo-lat-payment">95ms</span></div>
+                            </div>
+
+                            <div class="topology-arrow"><i class="fa-solid fa-arrow-right-long"></i></div>
+
+                            <!-- Node 4: Database Pool -->
+                            <div class="topology-node" id="node-database">
+                                <div class="node-top">
+                                    <span class="node-name">PostgreSQL Pool</span>
+                                    <span class="status-badge healthy" id="topo-badge-db">CONNECTED</span>
+                                </div>
+                                <div class="node-meta">Pool: 18/50 Active</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Microservice Fleet Cards Grid -->
+                    <div class="glass-panel">
+                        <div class="panel-head">
+                            <div class="panel-head-title">
+                                <i class="fa-solid fa-cubes-stacked"></i>
+                                <h3>Target Microservice Fleet (Production Namespace)</h3>
+                            </div>
+                            <span class="badge-pill">4 Deployments Tracked</span>
+                        </div>
+
+                        <div class="fleet-cards-grid" id="fleet-services-cards">
+                            <!-- Populated dynamically by app.js -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===============================================================
+                     TAB 2: INCIDENT WAR ROOM & AI TRACE
+                     =============================================================== -->
+                <div class="tab-pane" id="tab-incidents">
+                    <div class="war-room-split">
+                        
+                        <!-- Left: Live Incident Feed -->
+                        <div class="glass-panel">
+                            <div class="panel-head">
+                                <div class="panel-head-title">
+                                    <i class="fa-solid fa-fire text-rose"></i>
+                                    <h3>Incident Feed</h3>
+                                </div>
+                                <span class="badge-pill" style="color: var(--rose);">REAL-TIME</span>
+                            </div>
+                            <div class="incidents-feed-box" id="incidents-feed-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Right: LangGraph Decision Stepper & Terminal Console -->
+                        <div class="glass-panel">
+                            <div class="panel-head">
+                                <div class="panel-head-title">
+                                    <i class="fa-solid fa-brain" style="color: var(--indigo);"></i>
+                                    <h3>AutoSRE LangGraph & Gemini Decision Trace</h3>
+                                </div>
+                                <span class="badge-pill" style="color: var(--indigo); font-weight: 700;">GEMINI 1.5 FLASH</span>
+                            </div>
+
+                            <div class="decision-stage">
+                                <!-- Stepper Nodes -->
+                                <div class="stepper-progress">
+                                    <div class="step-node completed">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>1. Telemetry Ingest</span>
+                                    </div>
+                                    <div class="step-node completed">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>2. Drain + IsolationForest</span>
+                                    </div>
+                                    <div class="step-node completed">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>3. Gemini 1.5 RCA</span>
+                                    </div>
+                                    <div class="step-node completed">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>4. Security Gate</span>
+                                    </div>
+                                    <div class="step-node completed">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>5. Verification</span>
+                                    </div>
+                                </div>
+
+                                <!-- Terminal Console -->
+                                <div class="trace-terminal-view" id="reasoning-chain-viewer">
+                                    <div class="trace-block">
+                                        <div class="trace-block-header">
+                                            <span class="tag-source ingest">SYSTEM</span>
+                                            <span>Session ready. Awaiting failure alert...</span>
+                                        </div>
+                                        <div class="trace-content" style="color: var(--text-muted);">
+                                            Select an incident on the left or trigger an outage to observe the complete 5-stage autonomous closed-loop reasoning trace.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===============================================================
+                     TAB 3: SECURITY & GUARDRAILS
+                     =============================================================== -->
+                <div class="tab-pane" id="tab-security">
+                    <div class="security-matrix-grid">
+                        
+                        <!-- Policy Rules Table -->
+                        <div class="glass-panel">
+                            <div class="panel-head">
+                                <div class="panel-head-title">
+                                    <i class="fa-solid fa-shield-halved" style="color: var(--emerald);"></i>
+                                    <h3>Security Policy Gatekeeper Matrix</h3>
+                                </div>
+                                <span class="badge-pill" style="color: var(--emerald);">ENFORCED</span>
+                            </div>
+                            <div class="data-table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Operation</th>
+                                            <th>Status</th>
+                                            <th>Boundary Clamp</th>
+                                            <th>Execution Mode</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>scale_deployment</code></td>
+                                            <td><span class="status-badge healthy">PERMITTED</span></td>
+                                            <td>1 &le; replicas &le; 10</td>
+                                            <td>Autonomous SDK API</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>restart_deployment</code></td>
+                                            <td><span class="status-badge healthy">PERMITTED</span></td>
+                                            <td>30s Cooldown Guard</td>
+                                            <td>Rolling Zero-Downtime</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>rollback_deployment</code></td>
+                                            <td><span class="status-badge healthy">PERMITTED</span></td>
+                                            <td>Verified Stable Revision</td>
+                                            <td>Autonomous SDK API</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>delete_namespace</code></td>
+                                            <td><span class="status-badge critical">BLOCKED</span></td>
+                                            <td>Forbidden under all rules</td>
+                                            <td>Hard Intercept (Zero-Privilege)</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>exec_shell / bash</code></td>
+                                            <td><span class="status-badge critical">BLOCKED</span></td>
+                                            <td>No arbitrary shell access</td>
+                                            <td>Zero-Shell Guarantee</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>drop_database</code></td>
+                                            <td><span class="status-badge critical">BLOCKED</span></td>
+                                            <td>Irreversible destruction</td>
+                                            <td>Hard Intercept (Zero-Privilege)</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Policy Sandbox Simulator -->
+                        <div class="glass-panel" style="padding: 1.4rem;">
+                            <div class="panel-head-title" style="margin-bottom: 0.8rem;">
+                                <i class="fa-solid fa-vial-circle-check" style="color: var(--indigo);"></i>
+                                <h3>Policy Gatekeeper Sandbox Simulator</h3>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 1.2rem;">
+                                Proactively evaluate arbitrary or malicious actions against the runtime PolicyGatekeeper to witness boundary enforcement.
+                            </p>
+
+                            <div class="form-group">
+                                <label>Action Type</label>
+                                <select id="sim-action" class="form-select">
+                                    <option value="restart_deployment">restart_deployment (Standard Rolling Restart)</option>
+                                    <option value="scale_deployment">scale_deployment (Horizontal Scaling)</option>
+                                    <option value="rollback_deployment">rollback_deployment (Revert Revision)</option>
+                                    <option value="delete_namespace">delete_namespace (Malicious/Destructive Action)</option>
+                                    <option value="exec_shell">exec_shell / bash (Arbitrary Shell Command)</option>
+                                    <option value="drop_database">drop_database (Data Loss Vector)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Target Service / Resource</label>
+                                <select id="sim-service" class="form-select">
+                                    <option value="payment-service">payment-service (Standard Microservice)</option>
+                                    <option value="order-service">order-service (Standard Microservice)</option>
+                                    <option value="auth-database">auth-database (Protected Resource - Requires Human Sign-Off)</option>
+                                    <option value="core-ledger">core-ledger (Protected Resource - Requires Human Sign-Off)</option>
+                                    <option value="kube-system">kube-system (Protected Namespace)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Replicas Parameter (for scale_deployment)</label>
+                                <input type="number" id="sim-replicas" class="form-input" value="4" min="0" max="1000">
+                            </div>
+
+                            <button class="btn btn-primary" id="btn-test-policy" style="width: 100%; justify-content: center; margin-top: 8px;">
+                                <i class="fa-solid fa-play"></i> Evaluate Policy Gate
+                            </button>
+
+                            <div id="policy-test-result" class="sandbox-result-box" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===============================================================
+                     TAB 4: CHAOS FAULT LAB
+                     =============================================================== -->
+                <div class="tab-pane" id="tab-chaos">
+                    <div class="glass-panel">
+                        <div class="panel-head">
+                            <div class="panel-head-title">
+                                <i class="fa-solid fa-flask" style="color: var(--amber);"></i>
+                                <h3>Chaos Engineering Fault Injection Lab</h3>
+                            </div>
+                            <span class="badge-pill">6 Realistic Failure Modes</span>
+                        </div>
+
+                        <div class="chaos-grid">
+                            <!-- Scenario 1 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>1. DB Pool Exhaustion</h4>
+                                    <span class="status-badge critical">CRITICAL</span>
+                                </div>
+                                <p>Simulates connection pool depletion on PostgreSQL worker threads, producing 85% HTTP 500 error cascade.</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>payment-service</code></div>
+                                    <div>Symptom: <code>HTTP 500 (Connection Pool Exhausted)</code></div>
+                                    <div>Remediation: <code>Drain Pool + Rolling Restart</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('payment-service', 'DatabaseConnectionPoolExhausted', 'CRITICAL')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+
+                            <!-- Scenario 2 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>2. Memory Leak (OOMKilled)</h4>
+                                    <span class="status-badge critical">CRITICAL</span>
+                                </div>
+                                <p>Simulates unbounded heap memory accumulation exceeding 512MB limit, causing cgroup termination (exit code 137).</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>user-service</code></div>
+                                    <div>Symptom: <code>OOMKilled (Exit Code 137)</code></div>
+                                    <div>Remediation: <code>Pod Restart + Heap Dump Analysis</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('user-service', 'OOMKilledMemorySaturation', 'CRITICAL')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+
+                            <!-- Scenario 3 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>3. Gateway Timeout (504)</h4>
+                                    <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #FBBF24;">HIGH</span>
+                                </div>
+                                <p>Simulates 4,500ms upstream latency bottleneck propagating across checkout pipeline calls.</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>order-service</code></div>
+                                    <div>Symptom: <code>HTTP 504 Gateway Timeout</code></div>
+                                    <div>Remediation: <code>Circuit Breaker + Rollback</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('order-service', 'DownstreamTimeoutCascade', 'HIGH')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+
+                            <!-- Scenario 4 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>4. Probe CrashLoopBackOff</h4>
+                                    <span class="status-badge critical">CRITICAL</span>
+                                </div>
+                                <p>Simulates broken liveness probe path crashing pods every 15s in continuous restart loops.</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>notification-service</code></div>
+                                    <div>Symptom: <code>CrashLoopBackOff (Unhealthy Probe)</code></div>
+                                    <div>Remediation: <code>Revert Manifest to Stable Revision</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('notification-service', 'CrashLoopBackOffReadinessFailure', 'CRITICAL')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+
+                            <!-- Scenario 5 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>5. CPU Saturation Traffic Burst</h4>
+                                    <span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #FBBF24;">HIGH</span>
+                                </div>
+                                <p>Simulates 10,000 req/s flash crowd driving CPU to 98% saturation with worker queue deadlocks.</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>payment-service</code></div>
+                                    <div>Symptom: <code>CPU 98% // Thread Starvation</code></div>
+                                    <div>Remediation: <code>Horizontal Pod Scaling (Replicas x3)</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('payment-service', 'CPUSaturationThreadStarvation', 'HIGH')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+
+                            <!-- Scenario 6 -->
+                            <div class="chaos-card">
+                                <div class="chaos-card-top">
+                                    <h4>6. Vercel Serverless Crash</h4>
+                                    <span class="status-badge critical">CRITICAL</span>
+                                </div>
+                                <p>Simulates unhandled edge function runtime crash triggering 500 error storm on public frontend.</p>
+                                <div class="chaos-meta-box">
+                                    <div>Target: <code>vercel-edge-app</code></div>
+                                    <div>Symptom: <code>FUNCTION_INVOCATION_FAILED (500)</code></div>
+                                    <div>Remediation: <code>Instant Deployment Alias Rollback</code></div>
+                                </div>
+                                <button class="btn btn-danger" onclick="triggerOutageScenario('order-service', 'VercelServerlessTimeoutCrash', 'CRITICAL')">
+                                    <i class="fa-solid fa-bolt"></i> Inject Failure
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===============================================================
+                     TAB 5: CLOUD INTEGRATIONS
+                     =============================================================== -->
+                <div class="tab-pane" id="tab-connectors">
+                    <div class="glass-panel">
+                        <div class="panel-head">
+                            <div class="panel-head-title">
+                                <i class="fa-solid fa-cloud" style="color: var(--indigo);"></i>
+                                <h3>Connected Deployments & Multi-Cloud Infrastructure</h3>
+                            </div>
+                            <button class="btn btn-primary btn-xs" id="btn-toggle-new-connector">
+                                <i class="fa-solid fa-plus"></i> Connect New System
+                            </button>
+                        </div>
+
+                        <!-- Connector Registration Drawer -->
+                        <div id="connector-drawer" class="hidden" style="background: var(--bg-card); border-bottom: 1px solid var(--border-subtle); padding: 1.4rem;">
+                            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 1rem;">Register External Infrastructure System</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label>Provider Type</label>
+                                    <select id="new-conn-type" class="form-select">
+                                        <option value="KUBERNETES">AWS EKS / Cloud Kubernetes</option>
+                                        <option value="VERCEL">Vercel Web App</option>
+                                        <option value="GITHUB">GitHub CI/CD & GitOps</option>
+                                        <option value="PROMETHEUS">Prometheus Telemetry</option>
+                                        <option value="SLACK">Slack & PagerDuty</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Display Name</label>
+                                    <input type="text" id="new-conn-name" class="form-input" placeholder="e.g. AWS EKS Production">
+                                </div>
+                                <div class="form-group">
+                                    <label>Endpoint URL</label>
+                                    <input type="text" id="new-conn-url" class="form-input" placeholder="https://eks.us-east-1.amazonaws.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>Environment</label>
+                                    <select id="new-conn-env" class="form-select">
+                                        <option value="PRODUCTION">Production</option>
+                                        <option value="STAGING">Staging</option>
+                                        <option value="DEVELOPMENT">Development</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Auth Standard</label>
+                                    <select id="new-conn-auth" class="form-select">
+                                        <option value="IAM_ROLE">IAM Role (IRSA / Workload Identity)</option>
+                                        <option value="BEARER_TOKEN">API Bearer Token</option>
+                                        <option value="KUBECONFIG">Kubeconfig Cluster Cert</option>
+                                        <option value="WEBHOOK_SECRET">HMAC Webhook Secret</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-outline btn-xs" id="btn-test-connection-handshake">
+                                    <i class="fa-solid fa-plug"></i> Test Handshake
+                                </button>
+                                <button class="btn btn-primary btn-xs" id="btn-save-connector">
+                                    <i class="fa-solid fa-check"></i> Save & Connect System
+                                </button>
+                            </div>
+                            <div id="connector-test-feedback" style="display: none; margin-top: 10px; font-family: var(--font-mono); font-size: 11.5px;"></div>
+                        </div>
+
+                        <!-- Grid -->
+                        <div class="connectors-grid" id="connected-systems-grid">
                             <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- ===============================================================
+                     TAB 6: AUDIT LEDGER
+                     =============================================================== -->
+                <div class="tab-pane" id="tab-ledger">
+                    <div class="glass-panel">
+                        <div class="panel-head">
+                            <div class="panel-head-title">
+                                <i class="fa-solid fa-database" style="color: var(--blue);"></i>
+                                <h3>Cryptographic SRE Action & Security Audit Ledger</h3>
+                            </div>
+                            <span class="badge-pill">SQLite Immutable Storage</span>
+                        </div>
+
+                        <div class="data-table-wrap">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Incident ID</th>
+                                        <th>Action Type</th>
+                                        <th>Target Service</th>
+                                        <th>Operator</th>
+                                        <th>Gate Result</th>
+                                        <th>Execution Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="full-audit-table-body">
+                                    <tr>
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading ledger records...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-
-            <!-- Legacy Fleet Cards Container (Hidden or fallback) -->
-            <div id="fleet-services-grid" style="display: none;"></div>
-        </div>
-
-        <!-- ===================================================================
-             TAB 2: INCIDENTS & REASONING TRACE
-             =================================================================== -->
-        <div class="tab-pane" id="tab-incidents">
-            <div class="split-grid">
-                <!-- Left: Incident Feed -->
-                <div class="panel">
-                    <div class="panel-header-bar">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-list-check" style="color: var(--amber);"></i>
-                            <span>Incident Feed</span>
-                        </div>
-                        <div class="panel-meta">Live Alerts</div>
-                    </div>
-                    <div class="incident-feed-box" id="incidents-feed-list">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-
-                <!-- Right: LangGraph Decision Terminal Trace -->
-                <div class="panel">
-                    <div class="panel-header-bar">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-terminal" style="color: var(--blue);"></i>
-                            <span>AutoSRE Decision & RCA Execution Trace</span>
-                        </div>
-                        <div class="panel-meta">LangGraph + Gemini 1.5 Flash</div>
-                    </div>
-                    <div class="terminal-viewer" id="reasoning-chain-viewer">
-                        <div class="terminal-entry">
-                            <div class="terminal-tag-line">
-                                <span class="terminal-source ingest">SYSTEM</span>
-                                <span>Session idle. Awaiting incident trigger...</span>
-                            </div>
-                            <div class="terminal-text" style="color: var(--text-tertiary);">
-                                Select an incident from the feed or click "Inject Fault" to observe the step-by-step LangGraph closed-loop trace:
-                                Scraper &rarr; ML Anomaly &rarr; RAG Runbook &rarr; Gemini RCA &rarr; Policy Gate &rarr; K8s Exec &rarr; Verification.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===================================================================
-             TAB 3: SECURITY GUARDRAILS & POLICY GATEKEEPER
-             =================================================================== -->
-        <div class="tab-pane" id="tab-security">
-            <div class="security-grid">
-                <!-- Security Matrix -->
-                <div class="panel">
-                    <div class="panel-header-bar">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-lock" style="color: var(--green);"></i>
-                            <span>SRE Policy Gatekeeper Rules</span>
-                        </div>
-                        <div class="panel-meta">Strict Allowlist Enforced</div>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="dense-table">
-                            <thead>
-                                <tr>
-                                    <th>Operation</th>
-                                    <th>Permission</th>
-                                    <th>Boundary Constraints</th>
-                                    <th>Enforcement Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><code>scale_deployment</code></td>
-                                    <td><span class="status-badge healthy">PERMITTED</span></td>
-                                    <td>1 &le; replicas &le; 10</td>
-                                    <td>Automatic execution</td>
-                                </tr>
-                                <tr>
-                                    <td><code>restart_deployment</code></td>
-                                    <td><span class="status-badge healthy">PERMITTED</span></td>
-                                    <td>Cooldown: 30s between restarts</td>
-                                    <td>Automatic execution</td>
-                                </tr>
-                                <tr>
-                                    <td><code>rollback_deployment</code></td>
-                                    <td><span class="status-badge healthy">PERMITTED</span></td>
-                                    <td>Previous verified revision only</td>
-                                    <td>Automatic execution</td>
-                                </tr>
-                                <tr>
-                                    <td><code>delete_namespace</code></td>
-                                    <td><span class="status-badge critical">HARD BLOCKED</span></td>
-                                    <td>Forbidden under all conditions</td>
-                                    <td>Zero-privilege reject</td>
-                                </tr>
-                                <tr>
-                                    <td><code>exec_shell / bash</code></td>
-                                    <td><span class="status-badge critical">HARD BLOCKED</span></td>
-                                    <td>No arbitrary command execution</td>
-                                    <td>Typed SDK API only</td>
-                                </tr>
-                                <tr>
-                                    <td><code>drop_database</code></td>
-                                    <td><span class="status-badge critical">HARD BLOCKED</span></td>
-                                    <td>Data destruction barrier</td>
-                                    <td>Zero-privilege reject</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Live Policy Simulator Sandbox -->
-                <div class="sandbox-box">
-                    <div class="panel-title" style="margin-bottom: 0.75rem;">
-                        <i class="fa-solid fa-vial-circle-check" style="color: var(--blue);"></i>
-                        <span>Policy Gatekeeper Sandbox Simulator</span>
-                    </div>
-                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 1rem;">
-                        Test proposed agent commands against the runtime PolicyGatekeeper to verify boundary enforcement.
-                    </p>
-
-                    <div class="form-row">
-                        <label>Proposed Action Type</label>
-                        <select id="sim-action" class="form-control">
-                            <option value="restart_deployment">restart_deployment (Standard Rolling Restart)</option>
-                            <option value="scale_deployment">scale_deployment (Horizontal Scaling)</option>
-                            <option value="rollback_deployment">rollback_deployment (Revert Revision)</option>
-                            <option value="delete_namespace">delete_namespace (Malicious/Destructive Action)</option>
-                            <option value="exec_shell">exec_shell / bash (Arbitrary Shell Command)</option>
-                            <option value="drop_database">drop_database (Data Loss Vector)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-row">
-                        <label>Target Resource / Service</label>
-                        <select id="sim-service" class="form-control">
-                            <option value="payment-service">payment-service (Standard Microservice)</option>
-                            <option value="order-service">order-service (Standard Microservice)</option>
-                            <option value="auth-database">auth-database (Protected Resource - Requires Human Sign-Off)</option>
-                            <option value="core-ledger">core-ledger (Protected Resource - Requires Human Sign-Off)</option>
-                            <option value="kube-system">kube-system (Protected System Namespace)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-row">
-                        <label>Replica Parameter (for scale_deployment)</label>
-                        <input type="number" id="sim-replicas" class="form-control" value="4" min="0" max="1000">
-                    </div>
-
-                    <button class="btn btn-primary" id="btn-test-policy" style="margin-top: 6px;">
-                        <i class="fa-solid fa-play"></i> Evaluate Policy Gate
-                    </button>
-
-                    <div id="policy-test-result" class="policy-verdict-box" style="display: none;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===================================================================
-             TAB 4: CHAOS FAULT INJECTION LAB
-             =================================================================== -->
-        <div class="tab-pane" id="tab-chaos">
-            <div class="panel">
-                <div class="panel-header-bar">
-                    <div class="panel-title">
-                        <i class="fa-solid fa-flask-vial" style="color: var(--amber);"></i>
-                        <span>Chaos Engineering Scenarios</span>
-                    </div>
-                    <div class="panel-meta">Synthetic Failure Injection Suite</div>
-                </div>
-                <div style="padding: 1rem;">
-                    <div class="chaos-scenario-grid">
-                        <!-- Scenario 1 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">1. DB Connection Pool Exhaustion</span>
-                                <span class="status-badge critical">CRITICAL</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates PostgreSQL connection timeout acquiring worker thread, resulting in HTTP 500 error cascade.</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>payment-service</code></div>
-                                <div>Symptom: <code>500 Internal Server Error (85% fail)</code></div>
-                                <div>Remediation: <code>Drain Pool + Rolling Restart</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('payment-service', 'DatabaseConnectionPoolExhausted', 'CRITICAL')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-
-                        <!-- Scenario 2 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">2. Memory Saturation (OOMKilled)</span>
-                                <span class="status-badge critical">CRITICAL</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates unbounded heap accumulation exceeding 512MB limit, causing Linux cgroup OOM termination (exit 137).</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>user-service</code></div>
-                                <div>Symptom: <code>OOMKilled (Exit Code 137)</code></div>
-                                <div>Remediation: <code>Pod Restart + Heap Dump Capture</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('user-service', 'OOMKilledMemorySaturation', 'CRITICAL')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-
-                        <!-- Scenario 3 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">3. Cascading Gateway Timeout (504)</span>
-                                <span class="status-badge warning">HIGH</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates 4,500ms upstream latency bottleneck propagating across downstream dependency calls.</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>order-service</code></div>
-                                <div>Symptom: <code>HTTP 504 Gateway Timeout</code></div>
-                                <div>Remediation: <code>Circuit Breaker + Rollback</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('order-service', 'DownstreamTimeoutCascade', 'HIGH')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-
-                        <!-- Scenario 4 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">4. Probe CrashLoopBackOff</span>
-                                <span class="status-badge critical">CRITICAL</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates a broken liveness probe path causing container to restart continuously every 15s.</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>notification-service</code></div>
-                                <div>Symptom: <code>CrashLoopBackOff (Unhealthy Probe)</code></div>
-                                <div>Remediation: <code>Revert Manifest to Stable Revision</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('notification-service', 'CrashLoopBackOffReadinessFailure', 'CRITICAL')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-
-                        <!-- Scenario 5 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">5. CPU Saturation Traffic Burst</span>
-                                <span class="status-badge warning">HIGH</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates 10,000 req/s flash surge pushing compute cores to 98% saturation with worker queue pileups.</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>payment-service</code></div>
-                                <div>Symptom: <code>CPU 98% // Thread Starvation</code></div>
-                                <div>Remediation: <code>Horizontal Pod Scaling (Replicas x3)</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('payment-service', 'CPUSaturationThreadStarvation', 'HIGH')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-
-                        <!-- Scenario 6 -->
-                        <div class="chaos-card">
-                            <div class="chaos-card-top">
-                                <span class="chaos-card-title">6. Vercel Serverless Function Crash</span>
-                                <span class="status-badge critical">CRITICAL</span>
-                            </div>
-                            <p class="chaos-card-desc">Simulates unhandled exception in Vercel edge runtime causing HTTP 500 error storm on public frontend.</p>
-                            <div class="chaos-card-meta">
-                                <div>Target: <code>vercel-edge-app</code></div>
-                                <div>Symptom: <code>FUNCTION_INVOCATION_FAILED (500)</code></div>
-                                <div>Remediation: <code>Instant Deployment Alias Rollback</code></div>
-                            </div>
-                            <button class="btn btn-danger btn-xs" onclick="triggerOutageScenario('order-service', 'VercelServerlessTimeoutCrash', 'CRITICAL')">
-                                <i class="fa-solid fa-bolt"></i> Inject Failure
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===================================================================
-             TAB 5: IMMUTABLE AUDIT LEDGER
-             =================================================================== -->
-        <div class="tab-pane" id="tab-ledger">
-            <div class="panel">
-                <div class="panel-header-bar">
-                    <div class="panel-title">
-                        <i class="fa-solid fa-receipt" style="color: var(--blue);"></i>
-                        <span>Cryptographic SRE Action & Security Audit Ledger</span>
-                    </div>
-                    <div class="panel-meta">Immutable SQLite Storage</div>
-                </div>
-                <div class="table-responsive">
-                    <table class="dense-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>Incident ID</th>
-                                <th>Action Type</th>
-                                <th>Target Service</th>
-                                <th>Operator</th>
-                                <th>Gate Result</th>
-                                <th>Execution Details</th>
-                            </tr>
-                        </thead>
-                        <tbody id="full-audit-table-body">
-                            <tr>
-                                <td colspan="7" style="text-align: center; color: var(--text-tertiary);">Loading ledger entries...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ===================================================================
-             TAB 6: CONNECTED SYSTEMS & INTEGRATIONS
-             =================================================================== -->
-        <div class="tab-pane" id="tab-connectors">
-            <div class="panel">
-                <div class="panel-header-bar">
-                    <div class="panel-title">
-                        <i class="fa-solid fa-network-wired" style="color: var(--blue);"></i>
-                        <span>Multi-Cloud Deployment Connectors</span>
-                    </div>
-                    <button class="btn btn-secondary btn-xs" id="btn-toggle-new-connector">
-                        <i class="fa-solid fa-plus"></i> Connect New System
-                    </button>
-                </div>
-
-                <!-- Registration Drawer -->
-                <div id="connector-drawer" class="hidden" style="background: var(--bg-card); border-bottom: 1px solid var(--border-subtle); padding: 1rem;">
-                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 0.75rem;">Register External Infrastructure System</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 10px;">
-                        <div class="form-row">
-                            <label>Provider Type</label>
-                            <select id="new-conn-type" class="form-control">
-                                <option value="KUBERNETES">AWS EKS / Kubernetes</option>
-                                <option value="VERCEL">Vercel Web Platform</option>
-                                <option value="GITHUB">GitHub CI/CD & GitOps</option>
-                                <option value="PROMETHEUS">Prometheus Telemetry</option>
-                                <option value="SLACK">Slack & PagerDuty</option>
-                            </select>
-                        </div>
-                        <div class="form-row">
-                            <label>Display Name</label>
-                            <input type="text" id="new-conn-name" class="form-control" placeholder="e.g. AWS EKS Production">
-                        </div>
-                        <div class="form-row">
-                            <label>Endpoint URL</label>
-                            <input type="text" id="new-conn-url" class="form-control" placeholder="https://eks.us-east-1.amazonaws.com">
-                        </div>
-                        <div class="form-row">
-                            <label>Environment</label>
-                            <select id="new-conn-env" class="form-control">
-                                <option value="PRODUCTION">Production</option>
-                                <option value="STAGING">Staging</option>
-                                <option value="DEVELOPMENT">Development</option>
-                            </select>
-                        </div>
-                        <div class="form-row">
-                            <label>Authentication Standard</label>
-                            <select id="new-conn-auth" class="form-control">
-                                <option value="IAM_ROLE">IAM Role (IRSA / Workload Identity)</option>
-                                <option value="BEARER_TOKEN">API Bearer Token</option>
-                                <option value="KUBECONFIG">Kubeconfig Cluster Cert</option>
-                                <option value="WEBHOOK_SECRET">HMAC Webhook Secret</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-outline btn-xs" id="btn-test-connection-handshake">
-                            <i class="fa-solid fa-plug"></i> Test Handshake
-                        </button>
-                        <button class="btn btn-primary btn-xs" id="btn-save-connector">
-                            <i class="fa-solid fa-check"></i> Save & Connect
-                        </button>
-                    </div>
-                    <div id="connector-test-feedback" style="display: none; margin-top: 8px; font-family: var(--font-mono); font-size: 11px;"></div>
-                </div>
-
-                <!-- Connectors Matrix -->
-                <div style="padding: 1rem;">
-                    <div class="connectors-matrix" id="connected-systems-grid">
-                        <div style="color: var(--text-tertiary); font-size: 12px;">Loading connected systems...</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </main>
+        </main>
+    </div>
 
     <!-- Quick Fault Injection Modal -->
     <div class="modal-overlay hidden" id="quick-outage-modal">
-        <div class="modal-dialog">
-            <div class="modal-header">
-                <span style="font-weight: 600; font-size: 13px;">Inject Simulated Infrastructure Fault</span>
+        <div class="modal-card">
+            <div class="modal-card-head">
+                <span style="font-weight: 700; font-size: 13.5px;">Inject Simulated Infrastructure Outage</span>
                 <button class="btn-xs btn-outline" id="btn-close-outage-modal">&times;</button>
             </div>
-            <div class="modal-body">
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+            <div class="modal-card-body">
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; cursor: pointer;">
                         <input type="radio" name="modal_chaos" value="db_pool" checked>
                         <span><strong>1. DB Pool Exhaustion</strong> — payment-service connection depletion (500)</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; cursor: pointer;">
                         <input type="radio" name="modal_chaos" value="oom">
-                        <span><strong>2. OOMKilled Memory Leak</strong> — user-service resident heap limit breach (137)</span>
+                        <span><strong>2. OOMKilled Memory Leak</strong> — user-service heap limit breach (137)</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; cursor: pointer;">
                         <input type="radio" name="modal_chaos" value="latency">
                         <span><strong>3. Cascading Timeout (504)</strong> — order-service 4500ms downstream wait</span>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-size: 12.5px; cursor: pointer;">
                         <input type="radio" name="modal_chaos" value="crashloop">
                         <span><strong>4. CrashLoopBackOff</strong> — notification-service failed probe loop</span>
                     </label>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-card-foot">
                 <button class="btn btn-outline btn-xs" id="btn-dismiss-modal">Cancel</button>
                 <button class="btn btn-danger btn-xs" id="btn-modal-execute-chaos">Trigger Failure Cascade</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="toast-bar hidden" id="toast-notification">
-        <i class="fa-solid fa-circle-check" style="color: var(--green);"></i>
+    <!-- Toast Bubble -->
+    <div class="toast-bubble hidden" id="toast-notification">
+        <i class="fa-solid fa-circle-check" style="color: var(--emerald);"></i>
         <span id="toast-message">Incident successfully self-healed!</span>
     </div>
 
-    <!-- Application Script -->
     <script src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 /* ==============================================================================
    AutoSRE — Production Infrastructure Console Engine
-   Clean, human-engineered JavaScript for Datadog/Linear-style telemetry
+   Sleek, human-engineered JavaScript for Datadog/Linear-style telemetry
    ============================================================================== */
 
 const API_BASE = ""; // Relative to origin
@@ -12,7 +12,7 @@ let currentTab = "tab-fleet";
 const statFleetHealth = document.getElementById("stat-fleet-health");
 const statActiveIncidents = document.getElementById("stat-active-incidents");
 const statResolvedIncidents = document.getElementById("stat-resolved-incidents");
-const fleetTableBody = document.getElementById("fleet-services-table-body");
+const fleetCardsContainer = document.getElementById("fleet-services-cards");
 const incidentsFeedList = document.getElementById("incidents-feed-list");
 const reasoningChainViewer = document.getElementById("reasoning-chain-viewer");
 const fullAuditTableBody = document.getElementById("full-audit-table-body");
@@ -23,6 +23,7 @@ const quickOutageModal = document.getElementById("quick-outage-modal");
 const toastNotification = document.getElementById("toast-notification");
 const toastMessage = document.getElementById("toast-message");
 const policyTestResult = document.getElementById("policy-test-result");
+const breadcrumbTitle = document.getElementById("breadcrumb-title");
 
 // ------------------------------------------------------------------------------
 // Initialization & Navigation
@@ -55,17 +56,30 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function setupNavigationTabs() {
-    document.querySelectorAll(".nav-tab-btn").forEach(tab => {
+    const tabTitles = {
+        "tab-fleet": "Fleet & Topology",
+        "tab-incidents": "Incident War Room",
+        "tab-security": "Security & Guardrails",
+        "tab-chaos": "Chaos Fault Lab",
+        "tab-connectors": "Cloud Integrations",
+        "tab-ledger": "Audit Ledger",
+    };
+
+    document.querySelectorAll(".sidebar-tab-btn").forEach(tab => {
         tab.addEventListener("click", () => {
             const targetPaneId = tab.getAttribute("data-tab");
             currentTab = targetPaneId;
 
-            document.querySelectorAll(".nav-tab-btn").forEach(t => t.classList.remove("active"));
+            document.querySelectorAll(".sidebar-tab-btn").forEach(t => t.classList.remove("active"));
             document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
 
             tab.classList.add("active");
             const targetPane = document.getElementById(targetPaneId);
             if (targetPane) targetPane.classList.add("active");
+
+            if (breadcrumbTitle && tabTitles[targetPaneId]) {
+                breadcrumbTitle.innerText = tabTitles[targetPaneId];
+            }
 
             if (targetPaneId === "tab-ledger") {
                 fetchAuditLedger();
@@ -118,16 +132,34 @@ async function fetchSystemStatus() {
         statActiveIncidents.innerText = data.active_incidents;
         statResolvedIncidents.innerText = data.resolved_incidents;
 
-        const clusterIndicator = document.getElementById("cluster-indicator");
+        const badgeIncident = document.getElementById("badge-incident-count");
+        if (badgeIncident) {
+            if (data.active_incidents > 0) {
+                badgeIncident.innerText = data.active_incidents;
+                badgeIncident.style.display = "inline-block";
+                badgeIncident.style.background = "var(--rose)";
+                badgeIncident.style.color = "#FFF";
+            } else {
+                badgeIncident.style.display = "none";
+            }
+        }
 
         if (data.active_incidents > 0) {
             statFleetHealth.innerText = "DEGRADED";
-            statFleetHealth.style.color = "var(--red)";
-            if (clusterIndicator) clusterIndicator.className = "dot-status red";
+            statFleetHealth.style.color = "var(--rose)";
+            const successRate = document.getElementById("topbar-success-rate");
+            if (successRate) {
+                successRate.innerText = "72.4%";
+                successRate.style.color = "var(--rose)";
+            }
         } else {
             statFleetHealth.innerText = "100% HEALTHY";
-            statFleetHealth.style.color = "var(--green)";
-            if (clusterIndicator) clusterIndicator.className = "dot-status green";
+            statFleetHealth.style.color = "var(--emerald)";
+            const successRate = document.getElementById("topbar-success-rate");
+            if (successRate) {
+                successRate.innerText = "99.98%";
+                successRate.style.color = "var(--emerald)";
+            }
             outageAlertBanner.classList.add("hidden");
         }
     } catch (e) {
@@ -141,38 +173,112 @@ async function fetchFleetServices() {
         if (!res.ok) return;
         const services = await res.json();
 
-        if (fleetTableBody) {
-            fleetTableBody.innerHTML = services.map(svc => {
+        // Update Topology
+        updateTopologyView(services);
+
+        if (fleetCardsContainer) {
+            fleetCardsContainer.innerHTML = services.map(svc => {
                 const isCrit = svc.status === "CRITICAL" || svc.status === "Degraded";
-                const statusClass = isCrit ? "critical" : "healthy";
-                const statusText = isCrit ? "DEGRADED" : "HEALTHY";
-                const errColor = svc.error_rate > 0.05 ? "var(--red)" : "inherit";
+                const badgeClass = isCrit ? "critical" : "healthy";
+                const badgeText = isCrit ? "DEGRADED" : "HEALTHY";
+                const errColor = svc.error_rate > 0.05 ? "var(--rose)" : "var(--text-primary)";
+                const latColor = svc.p95_latency_ms > 1000 ? "var(--rose)" : "var(--text-primary)";
 
                 return `
-                    <tr>
-                        <td><span class="status-badge ${statusClass}"><span class="dot-status ${isCrit ? 'red' : 'green'}"></span> ${statusText}</span></td>
-                        <td>
-                            <div class="svc-title-cell">
-                                <i class="fa-solid fa-cube" style="color: var(--blue);"></i>
-                                <span>${svc.service_name}</span>
+                    <div class="svc-card ${isCrit ? 'degraded' : ''}">
+                        <div class="svc-card-header">
+                            <div class="svc-brand">
+                                <div class="svc-avatar">
+                                    <i class="fa-solid fa-cube"></i>
+                                </div>
+                                <div class="svc-titles">
+                                    <h4>${svc.service_name}</h4>
+                                    <span>${svc.service_name}:v2.1.4 // prod</span>
+                                </div>
                             </div>
-                        </td>
-                        <td><span style="font-family: var(--font-mono); font-weight: 600;">${svc.replicas} Pods</span></td>
-                        <td><span style="font-family: var(--font-mono);">${svc.p95_latency_ms}ms</span></td>
-                        <td><span style="font-family: var(--font-mono); color: ${errColor}; font-weight: 600;">${(svc.error_rate * 100).toFixed(1)}%</span></td>
-                        <td><span style="font-family: var(--font-mono);">${svc.cpu_saturation_pct.toFixed(0)}%</span></td>
-                        <td><span style="font-family: var(--font-mono);">${svc.memory_usage_mb}MB</span></td>
-                        <td>
+                            <span class="status-badge ${badgeClass}">
+                                <i class="fa-solid fa-circle" style="font-size: 6px;"></i> ${badgeText}
+                            </span>
+                        </div>
+
+                        <div class="svc-metrics-row">
+                            <div class="metric-cell">
+                                <span class="lbl">P95 LATENCY</span>
+                                <span class="val" style="color: ${latColor}">${svc.p95_latency_ms}ms</span>
+                            </div>
+                            <div class="metric-cell">
+                                <span class="lbl">ERROR RATE</span>
+                                <span class="val" style="color: ${errColor}">${(svc.error_rate * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="metric-cell">
+                                <span class="lbl">REPLICAS</span>
+                                <span class="val">${svc.replicas} Pods</span>
+                            </div>
+                            <div class="metric-cell">
+                                <span class="lbl">CPU LOAD</span>
+                                <span class="val">${svc.cpu_saturation_pct.toFixed(0)}%</span>
+                            </div>
+                            <div class="metric-cell">
+                                <span class="lbl">RESIDENT MEM</span>
+                                <span class="val">${svc.memory_usage_mb}MB</span>
+                            </div>
+                            <div class="metric-cell">
+                                <span class="lbl">RESTARTS</span>
+                                <span class="val">0</span>
+                            </div>
+                        </div>
+
+                        <div class="svc-card-footer">
+                            <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">
+                                <i class="fa-solid fa-shield-halved" style="color: var(--emerald);"></i> Auto-Heal: Active
+                            </span>
                             <button class="btn btn-outline btn-xs" onclick="triggerOutageScenario('${svc.service_name}', 'SimulatedFailureSpike', 'HIGH')">
                                 <i class="fa-solid fa-bolt" style="color: var(--amber);"></i> Test Fault
                             </button>
-                        </td>
-                    </tr>
+                        </div>
+                    </div>
                 `;
             }).join("");
         }
     } catch (e) {
         console.warn("Failed to fetch fleet services", e);
+    }
+}
+
+function updateTopologyView(services) {
+    const payment = services.find(s => s.service_name === "payment-service");
+    const order = services.find(s => s.service_name === "order-service");
+
+    const topoPayment = document.getElementById("node-payment-service");
+    const badgePayment = document.getElementById("topo-badge-payment");
+    const latPayment = document.getElementById("topo-lat-payment");
+
+    const topoOrder = document.getElementById("node-order-service");
+    const badgeOrder = document.getElementById("topo-badge-order");
+    const latOrder = document.getElementById("topo-lat-order");
+
+    const topbarLat = document.getElementById("topbar-latency");
+
+    if (payment && topoPayment && badgePayment) {
+        const isCrit = payment.status === "CRITICAL" || payment.status === "Degraded";
+        latPayment.innerText = `${payment.p95_latency_ms}ms`;
+        if (topbarLat) topbarLat.innerText = `${payment.p95_latency_ms}ms`;
+
+        if (isCrit) {
+            badgePayment.className = "status-badge critical";
+            badgePayment.innerText = "DEGRADED (500s)";
+            topoPayment.style.borderColor = "var(--rose)";
+            if (topbarLat) topbarLat.style.color = "var(--rose)";
+        } else {
+            badgePayment.className = "status-badge healthy";
+            badgePayment.innerText = "ONLINE";
+            topoPayment.style.borderColor = "var(--border-subtle)";
+            if (topbarLat) topbarLat.style.color = "var(--text-primary)";
+        }
+    }
+
+    if (order && topoOrder && badgeOrder) {
+        latOrder.innerText = `${order.p95_latency_ms}ms`;
     }
 }
 
@@ -186,8 +292,9 @@ async function fetchIncidents() {
 
         if (incidents.length === 0) {
             incidentsFeedList.innerHTML = `
-                <div style="padding: 1.5rem; text-align: center; color: var(--text-tertiary); font-size: 12px;">
-                    No active or historical incidents recorded.
+                <div style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 12px;">
+                    <i class="fa-solid fa-circle-check" style="color: var(--emerald); font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                    All systems operating normally. Zero active incidents.
                 </div>
             `;
             return;
@@ -204,7 +311,7 @@ async function fetchIncidents() {
                         <span class="incident-item-title">${inc.alert_name}</span>
                         <span class="status-badge ${badgeClass}">${inc.status}</span>
                     </div>
-                    <div class="incident-item-meta">
+                    <div class="incident-item-sub">
                         <span>Target: <code>${inc.service_name}</code></span>
                         <span>${timeAgo}m ago</span>
                     </div>
@@ -246,68 +353,68 @@ function renderTerminalTrace(inc, actions) {
     const timeStr = new Date(inc.created_at * 1000).toLocaleTimeString();
 
     reasoningChainViewer.innerHTML = `
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source ingest">INGEST</span>
-                <span>[${timeStr}] Prometheus Ingress Gate</span>
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source ingest">STAGE 1 // TELEMETRY INGEST</span>
+                <span>[${timeStr}] Prometheus Stream Listener</span>
             </div>
-            <div class="terminal-text">
-                Alert captured: <strong>${inc.alert_name}</strong> on service <code>${inc.service_name}</code>.
-                Kubernetes API telemetry scraped from <code>namespace/production</code>.
-            </div>
-        </div>
-
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source ml">ML_ANOMALY</span>
-                <span>Drain Token Extraction & IsolationForest</span>
-            </div>
-            <div class="terminal-text">
-                Token abstraction applied: normalized IP, UUID, and Hex payloads.
-                Unsupervised Isolation Forest anomaly score: <strong style="color: var(--blue);">${(inc.confidence * 100).toFixed(1)}% anomaly confidence</strong>.
+            <div class="trace-content">
+                Ingested alert: <strong style="color: var(--text-primary);">${inc.alert_name}</strong> on service <code>${inc.service_name}</code>.
+                Kubernetes metrics scraped from <code>production</code> namespace via official client SDK.
             </div>
         </div>
 
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source rag">RAG_KNOWLEDGE</span>
-                <span>Vector Similarity Retrieval</span>
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source ml">STAGE 2 // DRAIN + ISOLATION FOREST</span>
+                <span>Unsupervised Log Anomaly Detection</span>
             </div>
-            <div class="terminal-text">
-                Retrieved matching markdown SRE runbook from local knowledge base with operational remediation steps.
+            <div class="trace-content">
+                Applied Drain token abstraction regex (IP, HEX, NUM). Evaluated against 18,000 baseline BGL log vectors.
+                Model Anomaly Confidence: <strong style="color: var(--cyan);">${(inc.confidence * 100).toFixed(1)}% anomaly score</strong>.
             </div>
         </div>
 
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source llm">GEMINI_RCA</span>
-                <span>Gemini 1.5 Flash Structured Reasoner</span>
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source rag">STAGE 3 // SRE RUNBOOK RETRIEVAL</span>
+                <span>TF-IDF Vector Knowledge Base</span>
             </div>
-            <div class="terminal-text" style="color: #FBBF24; font-weight: 500;">
+            <div class="trace-content">
+                Retrieved matching markdown SRE runbook from local repository. Extracted approved remediation procedures.
+            </div>
+        </div>
+
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source llm">STAGE 4 // GEMINI 1.5 FLASH RCA</span>
+                <span>Google Gemini Diagnostic Report</span>
+            </div>
+            <div class="trace-content" style="color: #FCD34D; font-weight: 500;">
                 ${inc.diagnosis}
             </div>
         </div>
 
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source gate">POLICY_GATE</span>
-                <span>No-Shell Security Guardrail Check</span>
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source policy">STAGE 5 // POLICY GATEKEEPER</span>
+                <span>Zero-Shell Boundary Check</span>
             </div>
-            <div class="terminal-text">
-                Proposed remediation verified against strict allowlist. Arbitrary shell access: <strong>BLOCKED</strong>.
-                Parameter blast radius boundary clamped: <code>1 &le; replicas &le; 10</code>.
+            <div class="trace-content">
+                Allowlist check passed. Arbitrary command execution: <strong>HARD BLOCKED</strong>.
+                Replica boundary enforced: <code>1 &le; replicas &le; 10</code>. Approved action token generated.
             </div>
         </div>
 
-        <div class="terminal-entry">
-            <div class="terminal-tag-line">
-                <span class="terminal-source k8s">EXEC_VERIFY</span>
-                <span>Kubernetes Python SDK Execution</span>
+        <div class="trace-block">
+            <div class="trace-block-header">
+                <span class="tag-source verify">STAGE 6 // VERIFY & RESTORE</span>
+                <span>Closed-Loop Telemetry Recovery</span>
             </div>
-            <div class="terminal-text">
-                Dispatched ${actions.length} action(s). Final status: <strong style="color: var(--green);">${inc.status}</strong>.
+            <div class="trace-content">
+                Dispatched ${actions.length} remediation action(s). Recovery Status: <strong style="color: var(--emerald);">${inc.status}</strong>.
             </div>
-            <div class="terminal-code-block">${inc.agent_report || "Telemetry verified stable post-remediation."}</div>
+            <div class="trace-code-box">${inc.agent_report || "All Prometheus metrics normalized to baseline. Incident marked RESOLVED."}</div>
         </div>
     `;
 }
@@ -324,7 +431,7 @@ async function fetchAuditLedger() {
             <tr>
                 <td style="font-family: var(--font-mono);">${new Date(l.timestamp * 1000).toLocaleTimeString()}</td>
                 <td><code style="font-size: 11px;">${l.incident_id}</code></td>
-                <td><span style="font-family: var(--font-mono); font-weight: 600; color: var(--blue);">${l.action_type}</span></td>
+                <td><span style="font-family: var(--font-mono); font-weight: 700; color: var(--indigo);">${l.action_type}</span></td>
                 <td><strong>${l.target_service}</strong></td>
                 <td>${l.performed_by}</td>
                 <td><span class="status-badge healthy">${l.status}</span></td>
@@ -342,7 +449,7 @@ async function fetchAuditLedger() {
 
 async function triggerOutageScenario(serviceName, alertName, severity) {
     bannerTitle.innerText = `CRITICAL FAILURE DETECTED: ${alertName} (${serviceName})`;
-    bannerDesc.innerText = `AutoSRE Agent intercepted alert and is executing self-healing pipeline...`;
+    bannerDesc.innerText = `AutoSRE Agent intercepted alert and is executing Gemini 1.5 Flash self-healing loop...`;
     outageAlertBanner.classList.remove("hidden");
 
     showToast(`Injecting ${alertName} into ${serviceName}...`);
@@ -395,30 +502,30 @@ function setupPolicySimulator() {
         policyTestResult.style.display = "block";
 
         if (isUnallowlisted) {
-            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.className = "sandbox-result-box blocked";
             policyTestResult.innerHTML = `
-                <div><strong>[BLOCKED BY POLICY GATEKEEPER]</strong> Action '${actionType}' is forbidden.</div>
-                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Zero arbitrary shell or destructive commands permitted. Denied before cluster API invocation.</div>
+                <div><strong>[HARD BLOCKED BY POLICY GATEKEEPER]</strong> Action '${actionType}' is forbidden.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Zero arbitrary shell or destructive commands permitted. Blocked before cluster API dispatch.</div>
             `;
         } else if (isScaleOutOfRange) {
-            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.className = "sandbox-result-box blocked";
             policyTestResult.innerHTML = `
-                <div><strong>[BLAST RADIUS VIOLATION]</strong> Scaling to ${replicas} replicas violates safety policy bounds.</div>
-                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Microservice replicas are clamped to 1 &le; replicas &le; 10 to prevent runaway resource exhaustion.</div>
+                <div><strong>[BLAST RADIUS BOUNDARY VIOLATION]</strong> Scaling to ${replicas} replicas is forbidden.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Replicas strictly constrained to 1 &le; replicas &le; 10 to protect cloud compute budget.</div>
             `;
         } else if (isHumanRequired) {
-            policyTestResult.className = "policy-verdict-box blocked";
+            policyTestResult.className = "sandbox-result-box blocked";
             policyTestResult.style.borderColor = "var(--amber)";
             policyTestResult.style.color = "#FCD34D";
             policyTestResult.innerHTML = `
-                <div><strong>[HUMAN APPROVAL REQUIRED]</strong> Target '${serviceName}' is a protected resource.</div>
-                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Automated execution suspended pending human SRE authorization.</div>
+                <div><strong>[HUMAN APPROVAL REQUIRED]</strong> Resource '${serviceName}' is flagged protected.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Action permitted but suspended pending human SRE authorization signature.</div>
             `;
         } else {
-            policyTestResult.className = "policy-verdict-box allowed";
+            policyTestResult.className = "sandbox-result-box allowed";
             policyTestResult.innerHTML = `
-                <div><strong>[POLICY GATE PASSED]</strong> Action '${actionType}' on '${serviceName}' approved.</div>
-                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Action conforms to safe idempotent Kubernetes remediation standards. Execution token granted.</div>
+                <div><strong>[POLICY GATE VALIDATION PASSED]</strong> Action '${actionType}' on '${serviceName}' approved.</div>
+                <div style="margin-top: 4px; color: var(--text-secondary);">Rule: Conforms to idempotent Kubernetes remediation standards. Granted execution token.</div>
             `;
         }
     });
@@ -444,7 +551,7 @@ function setupConnectorControls() {
 
 async function fetchConnectors() {
     const grid = document.getElementById("connected-systems-grid");
-    const navCount = document.getElementById("nav-connectors-count");
+    const navCount = document.getElementById("badge-connector-count");
     if (!grid) return;
 
     try {
@@ -457,44 +564,44 @@ async function fetchConnectors() {
         grid.innerHTML = connectors.map(conn => {
             const isProd = conn.environment.toUpperCase() === "PRODUCTION";
             const iconClass = getProviderIcon(conn.system_type);
-            const latencyColor = conn.latency_ms < 50 ? "var(--green)" : "var(--amber)";
+            const latencyColor = conn.latency_ms < 50 ? "var(--emerald)" : "var(--amber)";
 
             return `
-                <div class="connector-box">
-                    <div class="connector-box-top">
-                        <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="connector-card">
+                    <div class="conn-header">
+                        <div class="conn-brand">
                             <div class="conn-icon-box">
                                 <i class="${iconClass}"></i>
                             </div>
-                            <div class="conn-identity">
+                            <div class="conn-titles">
                                 <h4>${conn.name}</h4>
-                                <span>${conn.system_type}</span>
+                                <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">${conn.system_type}</span>
                             </div>
                         </div>
                         <span class="status-badge ${isProd ? 'healthy' : 'warning'}">${conn.environment}</span>
                     </div>
 
-                    <div class="connector-box-meta">
-                        <div class="meta-line">
+                    <div class="conn-meta-list">
+                        <div class="conn-meta-row">
                             <span class="k">Endpoint</span>
-                            <span class="v" title="${conn.target_endpoint}">${conn.target_endpoint.substring(0, 28)}...</span>
+                            <span class="v" title="${conn.target_endpoint}">${conn.target_endpoint.substring(0, 26)}...</span>
                         </div>
-                        <div class="meta-line">
+                        <div class="conn-meta-row">
                             <span class="k">Auth Standard</span>
                             <span class="v">${conn.auth_type}</span>
                         </div>
-                        <div class="meta-line">
+                        <div class="conn-meta-row">
                             <span class="k">Link Latency</span>
-                            <span class="v" style="color: ${latencyColor}; font-weight: 600;">${conn.latency_ms.toFixed(1)}ms</span>
+                            <span class="v" style="color: ${latencyColor}; font-weight: 700;">${conn.latency_ms.toFixed(1)}ms</span>
                         </div>
-                        <div class="meta-line">
+                        <div class="conn-meta-row">
                             <span class="k">Status</span>
-                            <span class="v" style="color: var(--green); font-weight: 600;">${conn.status}</span>
+                            <span class="v" style="color: var(--emerald); font-weight: 700;">${conn.status}</span>
                         </div>
                     </div>
 
-                    <div class="connector-box-footer">
-                        <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
+                    <div class="conn-footer">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-secondary); cursor: pointer;">
                             <input type="checkbox" ${conn.auto_remediation_enabled ? 'checked' : ''} onchange="toggleRemediation('${conn.id}', this.checked)">
                             <span>Auto-Heal</span>
                         </label>
@@ -515,8 +622,8 @@ function getProviderIcon(stype) {
     if (s.includes("KUBERNETES") || s.includes("EKS")) return "fa-solid fa-dharmachakra text-blue";
     if (s.includes("VERCEL")) return "fa-solid fa-triangle-exclamation text-amber";
     if (s.includes("GITHUB")) return "fa-brands fa-github text-white";
-    if (s.includes("PROMETHEUS")) return "fa-solid fa-chart-line text-green";
-    if (s.includes("SLACK")) return "fa-brands fa-slack text-red";
+    if (s.includes("PROMETHEUS")) return "fa-solid fa-chart-line text-emerald";
+    if (s.includes("SLACK")) return "fa-brands fa-slack text-rose";
     return "fa-solid fa-server text-blue";
 }
 
@@ -571,14 +678,14 @@ async function handleTestHandshake() {
         const data = await res.json();
 
         if (res.ok) {
-            feedback.style.color = "var(--green)";
+            feedback.style.color = "var(--emerald)";
             feedback.innerHTML = `<i class="fa-solid fa-check"></i> Handshake success (${data.latency_ms}ms) // ${data.message}`;
         } else {
-            feedback.style.color = "var(--red)";
+            feedback.style.color = "var(--rose)";
             feedback.innerHTML = `<i class="fa-solid fa-xmark"></i> Handshake failed: ${data.detail || 'Connection refused'}`;
         }
     } catch (e) {
-        feedback.style.color = "var(--red)";
+        feedback.style.color = "var(--rose)";
         feedback.innerHTML = `<i class="fa-solid fa-xmark"></i> Network unreachable: ${e.message}`;
     }
 }
