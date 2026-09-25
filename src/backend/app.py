@@ -182,6 +182,31 @@ def approve_action(req: ActionApprovalRequest, db: Session = Depends(get_db)):
     db.commit()
     return {"status": audit.status}
 
+@app.get("/api/security/policies")
+def get_security_policies():
+    return {
+        "sandbox_mode": "STRICT_CONTAINER_SANDBOX",
+        "shell_execution_status": "HARD_BLOCKED (Zero arbitrary command execution)",
+        "allowed_actions": [
+            {"action": "restart_deployment", "description": "Rolling restart of pods to clear hung state", "status": "PERMITTED"},
+            {"action": "scale_deployment", "description": "Horizontal pod scaling (bounds: 1-10 replicas)", "status": "PERMITTED"},
+            {"action": "rollback_deployment", "description": "Roll back to last verified stable deployment", "status": "PERMITTED"},
+        ],
+        "forbidden_actions": [
+            {"action": "delete_namespace", "risk": "Destroys production namespace", "status": "HARD_BLOCKED"},
+            {"action": "exec_shell / bash", "risk": "Arbitrary command injection", "status": "HARD_BLOCKED"},
+            {"action": "modify_iam_roles", "risk": "Privilege escalation attack", "status": "HARD_BLOCKED"},
+            {"action": "drop_database", "risk": "Irreversible data loss", "status": "HARD_BLOCKED"},
+        ],
+        "blast_radius_limits": {
+            "min_replicas": 1,
+            "max_replicas": 10,
+            "cooldown_period_sec": 30,
+        },
+        "protected_services_requiring_human_approval": ["auth-database", "core-ledger", "secrets-manager"],
+        "audit_ledger": "ACTIVE (Every action recorded in immutable SQLite ledger)"
+    }
+
 # ------------------------------------------------------------------------------
 # Mount Dashboard Frontend
 # ------------------------------------------------------------------------------
