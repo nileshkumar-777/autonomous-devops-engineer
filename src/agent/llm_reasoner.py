@@ -42,8 +42,8 @@ class GeminiDiagnosticReasoner:
         try:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
-            logger.info("Gemini 1.5 Flash client initialized successfully.")
+            self.model = genai.GenerativeModel("gemini-3.5-flash-lite")
+            logger.info("Gemini 3.5 Flash Lite client initialized successfully.")
         except Exception as e:
             logger.warning("Failed to initialize Google Generative AI client: %s. Using fallback mode.", e)
 
@@ -58,14 +58,13 @@ class GeminiDiagnosticReasoner:
         """
         Produce a structured RCA report using Gemini or fallback to deterministic inference.
         """
-        # If Gemini is configured, invoke it with structured prompt
         if self.model:
             try:
                 report = self._call_gemini(service_name, alert_name, metrics, anomalies, runbooks)
                 if report:
                     return report
             except Exception as e:
-                logger.error("Gemini API call failed (%s). Falling back to deterministic SRE engine.", e)
+                logger.warning("Gemini API call failed (%s). Falling back to deterministic SRE engine.", e)
 
         # Fallback deterministic SRE engine
         return self._deterministic_fallback(service_name, alert_name, metrics, anomalies, runbooks)
@@ -94,20 +93,23 @@ RETRIEVED SRE RUNBOOKS:
 {json.dumps(runbooks, indent=2)}
 
 ALLOWED ACTIONS:
-- restart_deployment: Safe for clearing leaked state, hung connection pools, and memory buildup.
-- scale_deployment: Safe for absorbing traffic spikes (replicas must be between 1 and 10).
+- restart_deployment: Safe for clearing leaked state, hung connection pools, crashed host ports, and memory buildup.
+- scale_deployment: Safe for absorbing traffic spikes or distributing connection capacity (replicas must be between 1 and 10).
 - rollback_deployment: Safe for reverting a bad code release or CrashLoopBackOff.
+
+RECOMMENDED ACTIONS GUIDANCE:
+- For high error rate cascades, database pool exhaustion, or severe load, recommend both restart_deployment (to flush deadlocks) and scale_deployment (to expand capacity).
 
 Return ONLY a valid JSON object matching this schema:
 {{
-  "root_cause": "concise description of the failure cause",
+  "root_cause": "concise description of the specific failure cause for {alert_name}",
   "confidence": 0.95,
   "severity": "CRITICAL",
   "recommended_actions": [
     {{
       "action_type": "restart_deployment",
       "service_name": "{service_name}",
-      "reason": "Clear hung DB connections by rolling restart."
+      "reason": "Specific rationale"
     }}
   ],
   "explanation": "Detailed step-by-step SRE rationale based on telemetry and runbook guidance."
@@ -129,12 +131,39 @@ Return ONLY a valid JSON object matching this schema:
         anomalies: List[Dict],
         runbooks: List[Dict],
     ) -> DiagnosticReport:
-        """Deterministic SRE reasoning rules for instant, zero-failure diagnosis."""
+        """Deterministic SRE reasoning rules for instant, accurate zero-failure diagnosis."""
         anom_str = " ".join(a.get("raw_line", "").lower() for a in anomalies)
         error_rate = metrics.get("error_rate", 0.0)
+        p95_lat = metrics.get("latency_p95_ms", 0.0)
+        alert_lower = alert_name.lower()
 
         actions = []
-        if "pool exhausted" in anom_str or error_rate > 0.5:
+        if (
+            "hostunreachable" in alert_lower
+            or "refused" in anom_str
+            or "unreachable" in anom_str
+            or "crash" in alert_lower
+            or p95_lat >= 990
+        ):
+            root_cause = f"Target host process crashed or port connection refused for {service_name}."
+            severity = "CRITICAL"
+            confidence = 0.96
+            explanation = (
+                f"Health checks failed with HostUnreachableOrCrash on {service_name}. Telemetry indicates "
+                "the application server crashed or halted network listener. Executing automated service restart."
+            )
+            actions.append(RecommendedAction(
+                action_type="restart_deployment",
+                service_name=service_name,
+                reason="Restart crashed service process to restore network availability."
+            ))
+        elif (
+            "pool exhausted" in anom_str
+            or "database" in alert_lower
+            or "db_pool" in anom_str
+            or "psycopg2" in anom_str
+            or "databaseconnectionpoolexhausted" in alert_lower
+        ):
             root_cause = f"Database connection pool exhausted in {service_name} leading to HTTP 503 cascades."
             severity = "CRITICAL"
             confidence = 0.94
@@ -153,7 +182,28 @@ Return ONLY a valid JSON object matching this schema:
                 replicas=3,
                 reason="Scale to 3 replicas to distribute connection capacity."
             ))
-        elif "oom" in anom_str or "killed" in anom_str:
+        elif "crashloop" in alert_lower or "readiness" in alert_lower:
+            root_cause = f"Container entered CrashLoopBackOff due to failed readiness probes in {service_name}."
+            severity = "CRITICAL"
+            confidence = 0.92
+            explanation = "Readiness probe failed consecutive checks. Rolling back deployment to previous healthy revision."
+            actions.append(RecommendedAction(
+                action_type="rollback_deployment",
+                service_name=service_name,
+                reason="Rollback deployment to clear breaking configuration or corrupt container build."
+            ))
+        elif "downstreamtimeout" in alert_lower or "timeout" in alert_lower or p95_lat > 2000:
+            root_cause = f"Downstream latency timeout cascade impacting {service_name} request pipeline."
+            severity = "HIGH"
+            confidence = 0.89
+            explanation = f"P95 latency spiked to {p95_lat:.0f}ms. Upstream threads are blocked on downstream I/O. Horizontal scaling required."
+            actions.append(RecommendedAction(
+                action_type="scale_deployment",
+                service_name=service_name,
+                replicas=3,
+                reason="Scale deployment to 3 replicas to absorb traffic spike."
+            ))
+        elif "oom" in anom_str or "killed" in anom_str or "memory" in alert_lower:
             root_cause = f"Memory exhaustion (OOMKilled) in {service_name} pod container."
             severity = "HIGH"
             confidence = 0.91
@@ -162,6 +212,16 @@ Return ONLY a valid JSON object matching this schema:
                 action_type="restart_deployment",
                 service_name=service_name,
                 reason="Reclaim memory buffer by restarting the affected pod."
+            ))
+        elif "5xx" in alert_lower or "http5xx" in alert_lower or error_rate > 0.1:
+            root_cause = f"HTTP 5xx error cascade detected across {service_name} application handlers."
+            severity = "CRITICAL"
+            confidence = 0.93
+            explanation = f"Error rate elevated to {error_rate * 100:.1f}%. Restarting deployment to purge corrupted worker thread pool."
+            actions.append(RecommendedAction(
+                action_type="restart_deployment",
+                service_name=service_name,
+                reason="Restart application to clear worker state and recover baseline 2xx throughput."
             ))
         else:
             root_cause = f"Elevated latency spike detected across {service_name} upstream routes."

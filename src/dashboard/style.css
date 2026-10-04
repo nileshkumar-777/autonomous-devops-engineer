@@ -1165,3 +1165,11 @@ body {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Color Utilities for Provider Icons and Status */
+.text-amber { color: #F59E0B !important; }
+.text-blue { color: #3B82F6 !important; }
+.text-emerald { color: #10B981 !important; }
+.text-rose { color: #F43F5E !important; }
+.text-white { color: #FFFFFF !important; }
+.text-indigo { color: #6366F1 !important; }

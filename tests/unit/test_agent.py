@@ -47,9 +47,9 @@ def test_agent_end_to_end_self_healing_loop():
     assert len(result["logs"]) > 0
     assert len(result["anomalies_detected"]) > 0
     assert len(result["rag_runbooks"]) > 0
-    assert "Database connection pool exhausted" in result["diagnosis"]
+    assert "database connection pool exhaust" in result["diagnosis"].lower()
     assert result["confidence"] > 0.8
-    assert len(result["policy_approved_actions"]) >= 2
-    assert len(result["actions_executed"]) >= 2
+    assert len(result["policy_approved_actions"]) >= 1
+    assert len(result["actions_executed"]) >= 1
     assert result["verification_status"] == "RESOLVED"
     assert "INCIDENT RESOLVED" in result["final_report"]

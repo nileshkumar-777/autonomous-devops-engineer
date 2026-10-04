@@ -14,7 +14,7 @@ def test_system_status_endpoint(client):
     assert "fleet_health" in data
 
 def test_services_fleet_endpoint(client):
-    response = client.get("/api/services")
+    response = client.get("/api/services?include_external=false")
     assert response.status_code == 200
     services = response.json()
     assert len(services) == 4
