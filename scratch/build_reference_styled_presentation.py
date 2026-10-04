@@ -84,6 +84,8 @@ def create_reference_styled_presentation():
 
         # Right Event Badge
         b_r = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(10.1), Inches(0.32), Inches(2.4), Inches(0.42))
+        if b_r.adjustments:
+            b_r.adjustments[0] = 0.08
         b_r.fill.solid()
         b_r.fill.fore_color.rgb = PANEL_BLUE
         b_r.line.color.rgb = BORDER_BLUE
@@ -103,6 +105,8 @@ def create_reference_styled_presentation():
         panel.fill.fore_color.rgb = bg_col
         panel.line.color.rgb = border_col
         panel.line.width = Pt(border_width)
+        if panel.adjustments:
+            panel.adjustments[0] = 0.03
         return panel
 
     def add_speaker_notes(slide, notes_text):
